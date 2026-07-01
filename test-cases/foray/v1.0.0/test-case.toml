@@ -1,4 +1,4 @@
-# The Test Cabinet test case manifest — Foray (on-disk slug `adversarial-pacman`).
+# The Test Cabinet test case manifest — Foray.
 #
 # This is an ADVERSARIAL case: the model writes a wasm controller that drives one
 # colony, and a run plays ONE canonical match of it against the case's committed
@@ -6,8 +6,8 @@
 # submission to wasm, run the match through the shared `foray-host`, and record the
 # result plus a browser-playable replay.
 
-# Human-readable display name (in-fiction title; the on-disk slug stays
-# `adversarial-pacman`, following the house convention pacman -> Fathom).
+# Human-readable display name (in-fiction title). The on-disk slug (`foray`)
+# matches this title.
 name = "Foray"
 
 # Relative difficulty (easy | medium | hard), surfaced on the site. Foray asks the

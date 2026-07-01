@@ -1,4 +1,4 @@
-# The Test Cabinet test case manifest — Lattice (on-disk slug `performance-factorio`).
+# The Test Cabinet test case manifest — Lattice.
 #
 # This is a PERFORMANCE case: the model writes a wasm ENGINE that simulates a
 # deterministic Factorio-style factory, and a run scores that engine on a set of
@@ -9,9 +9,8 @@
 # `lattice-host` (the same host the `lattice` CLI uses), recording correctness and
 # the fuel total. There is no head-to-head match and no replay renderer in v1.
 
-# Human-readable display name (in-fiction title; the on-disk slug stays
-# `performance-factorio`, following the house convention pacman -> Fathom,
-# adversarial-pacman -> Foray).
+# Human-readable display name (in-fiction title). The on-disk slug (`lattice`)
+# matches this title.
 name = "Lattice"
 
 # Relative difficulty (easy | medium | hard), surfaced on the site. Lattice asks

@@ -1,13 +1,13 @@
-# Pong — `v1.0.0` (Carom)
+# Carom — `v1.0.0`
 
-This is version `v1.0.0` of the **Pong** test case. The implemented game is an
+This is version `v1.0.0` of the **Carom** test case. The implemented game is an
 original paddle-and-ball duel titled **Carom**: classic paddle mechanics plus a
 **spin** mechanic (a paddle's motion curves the ball) and two **static
 obstacles** in the field. A **Frenzy** mode adds an uncapped speed ramp.
 
-Pong is the catalog slug for this lineage of paddle-and-ball cases; `Carom` is
-the original in-game title. The case is inspired by classic paddle games but is
-not a clone of any of them — the name, look, spin mechanic, and obstacle layout
+`carom` is the catalog slug for this lineage of paddle-and-ball cases, and the
+game's in-fiction title. The case is inspired by classic paddle games (such as
+Pong) but is not a clone of any of them — the name, look, spin mechanic, and obstacle layout
 are original to The Test Cabinet.
 
 ## Why Pong as the first test case
@@ -55,5 +55,5 @@ rather than copying the mockup code.
 ## Versioning
 
 This case follows semantic versioning per version folder
-(`test-cases/pong/v1.0.0/`). Each version is self-contained and immutable once a
+(`test-cases/carom/v1.0.0/`). Each version is self-contained and immutable once a
 run references it; design revisions land as new version folders.

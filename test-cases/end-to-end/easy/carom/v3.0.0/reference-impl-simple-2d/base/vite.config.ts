@@ -1,8 +1,11 @@
-import { defineConfig } from "vite";
-
+// CASE-PROVIDED. Do not edit.
+//
 // Carom builds to a fully self-contained static bundle. `base: "./"` makes the
 // emitted asset URLs relative, so the `dist/` output runs correctly whether it
 // is served at the root of a static host or from a sub-path.
+
+import { defineConfig } from "vite";
+
 export default defineConfig({
   base: "./",
   build: {

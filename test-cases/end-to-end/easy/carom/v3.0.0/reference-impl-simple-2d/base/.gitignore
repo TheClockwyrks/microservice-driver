@@ -1,17 +1,17 @@
 # Dependencies — reinstalled with `npm ci`; never committed.
 node_modules/
 
-# Production build output — produced by `npm run build`. Anchored to the project
-# root so the committed, vendored `vendor/simple-2d/dist` is NOT ignored.
+# Production build output — produced by `npm run build`. Every pattern here is
+# ANCHORED to the repository root on purpose: the engine is vendored into this
+# repository at `.tcab/engine/@test-cabinet/simple-2d/`, prebuilt, and its own
+# `dist/` is committed with the seed. An unanchored `dist/` would match that
+# directory too and leave the build unable to resolve the engine.
 /dist/
 /build/
 /out/
 
-# The repo-root .gitignore ignores any dir named `dist` anywhere; re-include the
-# vendored, prebuilt engine output so `npm ci` can resolve it on a fresh checkout
-# (it is the engine's committed dist, not build output of this project).
-!vendor/simple-2d/dist/
-!vendor/simple-2d/dist/**
+# Coverage reports — produced by `npm test`.
+coverage/
 
 # Playwright verification scratch.
 test-results/
@@ -19,3 +19,15 @@ playwright-report/
 
 # Logs.
 *.log
+
+# --- Only in this copy -------------------------------------------------------
+#
+# A seeded run repository is its own repository, so the file above is the whole of
+# its ignore rules. This copy of the build lives inside the Test Cabinet monorepo,
+# whose root .gitignore ignores `.tcab/` (scratch that `tcab validate` writes) and
+# any directory named `dist`. Both would swallow the vendored, prebuilt engine at
+# `.tcab/engine/@test-cabinet/simple-2d/`, which is committed here so this
+# reference installs and builds standalone with a plain `npm ci`. A rule in a
+# deeper .gitignore wins, so re-including it here is what keeps it tracked.
+!.tcab/
+!.tcab/**

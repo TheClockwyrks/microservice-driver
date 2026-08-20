@@ -1,30 +1,25 @@
 // Carom — audio, as engine cues.
 //
 // There is no Web Audio graph here, no mute flag, and no autoplay unlock: the
-// engine owns the audio context, the synthesis, the mute state and the
-// first-interaction unlock. The game's whole part is to DECLARE four short blips
-// once and then play them BY NAME as the events happen (specs/ui.md).
+// engine owns the audio context, the synthesis, the mute state, and the
+// first-gesture unlock. The game's whole part is to DECLARE the four cues
+// `src/constants.ts` names, once, and then play them BY NAME as the events happen
+// (specs/ui.md).
 //
-// Playing by name is what makes the sound legible from outside: the engine's cue
-// log records the name, so "the ball hit a paddle and the paddle cue played" is a
-// fact a driver can read, rather than something inferred from an oscillator
-// starting. It also means a mistyped name throws instead of silently going quiet.
+// Playing by name is what makes the sound legible from outside: the engine emits a
+// `cue:played` event carrying the name, so "the ball hit a paddle and the paddle
+// cue played" is a fact a check can subscribe to rather than something inferred
+// from an oscillator starting. It also means a mistyped name throws rather than
+// silently going quiet.
 //
 // The four are pitched and shaped to be told apart by ear: a bright square click
 // off a paddle, a low soft thud off a wall, a woodier falling knock off an
 // obstacle, and a longer rising chime for a point.
 
-import type { CueSpec, Engine } from "@test-cabinet/simple-2d";
+import { CUES, type CueName } from "./constants";
+import type { CueSpec, InitApi } from "@test-cabinet/simple-2d";
 
-/** The cue names, one per event. */
-export const CUES = {
-  paddleHit: "paddle-hit",
-  wallBounce: "wall-bounce",
-  obstacleBounce: "obstacle-bounce",
-  score: "score",
-} as const;
-
-const SPECS: Readonly<Record<string, CueSpec>> = {
+export const CUE_SPECS: Readonly<Record<CueName, CueSpec>> = {
   [CUES.paddleHit]: {
     wave: "square",
     freq: 430,
@@ -55,6 +50,8 @@ const SPECS: Readonly<Record<string, CueSpec>> = {
 };
 
 /** Declare every cue, once, before the first frame. */
-export function defineCues(engine: Engine): void {
-  for (const [cue, spec] of Object.entries(SPECS)) engine.audio.define(cue, spec);
+export function defineCues(api: InitApi): void {
+  for (const [cue, spec] of Object.entries(CUE_SPECS)) {
+    api.audio.define(cue, spec);
+  }
 }

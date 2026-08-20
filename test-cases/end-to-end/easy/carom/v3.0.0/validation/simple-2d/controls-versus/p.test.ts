@@ -1,11 +1,11 @@
 // Carom — controls-versus/p: pressing `P` during a Versus match pauses it.
 //
-// `KeyP` is bound to the engine's `pause` action (specs/modes/versus.md).
+// `KeyP` is bound to the runtime's `pause` action (specs/modes/versus.md).
 //
 // The match is started from the title with real key events and then played into a
 // live rally — past the pre-serve hold, so what is paused is a match in flight
 // rather than its countdown, which is the `gameplay/pause-during-countdown`
-// item's separate point. The key event is dispatched at the target the engine
+// item's separate point. The key event is dispatched at the target the runtime
 // listens on, so the action is raised by the binding the case declares rather
 // than by anything this check reaches into.
 

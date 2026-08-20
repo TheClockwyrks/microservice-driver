@@ -15,7 +15,7 @@
 // from this file's own URL rather than from the working directory, so the command
 // above works from anywhere.
 //
-// The environment is `node`. The engine takes every measurement from the
+// The environment is `node`. The runtime takes every measurement from the
 // `SurfaceMetrics` the harness supplies, so these suites need no DOM.
 
 import { defineConfig } from "vitest/config";

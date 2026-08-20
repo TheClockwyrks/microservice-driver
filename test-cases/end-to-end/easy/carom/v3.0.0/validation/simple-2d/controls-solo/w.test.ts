@@ -6,9 +6,9 @@
 // no player two (specs/modes/single-player.md).
 //
 // The match is started from the title with real key events dispatched at the
-// target the engine listens on, so the game stays under normal player control:
+// target the runtime listens on, so the game stays under normal player control:
 // nothing here calls a control operation, and the paddle moves only because the
-// build read the action the engine raised from the key the case binds. The key is
+// build read the action the runtime raised from the key the case binds. The key is
 // then held for a known span and the displacement read back off the game's own
 // state, which is what makes this a check of the CONTROL rather than of the
 // simulation.

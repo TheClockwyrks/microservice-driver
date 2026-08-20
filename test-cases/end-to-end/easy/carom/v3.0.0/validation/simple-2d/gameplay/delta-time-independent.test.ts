@@ -3,7 +3,7 @@
 //
 // One scenario is driven three times — under a steady step, under an uneven
 // repeating pattern, and under a seeded jitter — and the three runs must agree.
-// The engine's clock is replaceable, so the same posed situation can be replayed
+// The runtime's clock is replaceable, so the same posed situation can be replayed
 // at a different step size without touching the build.
 //
 // WHAT IS ASSERTED, AND WHAT DELIBERATELY IS NOT. Only outcomes that survive a
@@ -21,7 +21,7 @@
 // advancing a fixed amount per frame traces the very same path through the field
 // whatever the step size, and would agree with itself on every fact above. What
 // it cannot do is take the same amount of SIMULATED TIME to trace it. The elapsed
-// time of each drive is read from the engine's own frame clock — engine code no
+// time of each drive is read from the runtime's own frame clock — runtime code no
 // build can misreport — and compared across the three schedules.
 
 import { afterEach, expect, it } from "vitest";
@@ -141,7 +141,7 @@ afterEach(() => {
   while (live.length > 0) live.pop()?.dispose();
 });
 
-/** Pose the scenario on a fresh engine driven by `clock`, and play it out. */
+/** Pose the scenario on a fresh runtime driven by `clock`, and play it out. */
 async function driveOnce(clock: Clock): Promise<Outcome> {
   const harness = await createHarness({ clock });
   live.push(harness);
@@ -201,7 +201,7 @@ async function driveOnce(clock: Clock): Promise<Outcome> {
 }
 
 it("reaches the same outcome however the elapsed time is divided into frames", async () => {
-  // Driven one after another rather than together, so each engine has the
+  // Driven one after another rather than together, so each runtime has the
   // process to itself and a failure names one schedule.
   const drives: Outcome[] = [];
   for (const schedule of SCHEDULES)

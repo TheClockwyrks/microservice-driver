@@ -1,8 +1,8 @@
 // Carom — audio/paddle-hit: the `paddle-hit` cue plays on the frame the ball
 // strikes a paddle.
 //
-// Cues are the engine's. The game declares the four names `specs/ui.md` fixes and
-// asks for one by name; the engine announces every play as a `cue:played` event,
+// Cues are the runtime's. The game declares the four names `specs/ui.md` fixes and
+// asks for one by name; the runtime announces every play as a `cue:played` event,
 // synchronously, from inside the call. So a check subscribes and reads what
 // arrived — there is no log to poll, no audio device to own, and no unlock
 // gesture to fake, because a cue is announced whether or not anything could be

@@ -8,9 +8,9 @@
 // driving both paddles at once, and both are read from the one hold.
 //
 // The match is started from the title with real key events dispatched at the
-// target the engine listens on, so the game stays under normal player control:
+// target the runtime listens on, so the game stays under normal player control:
 // nothing here calls a control operation, and the paddle moves only because the
-// build read the action the engine raised from the key the case binds.
+// build read the action the runtime raised from the key the case binds.
 //
 // The direction is the whole point here, not the rate: how fast a held paddle
 // travels is the `paddle-movement` category's, and asserting it in both places

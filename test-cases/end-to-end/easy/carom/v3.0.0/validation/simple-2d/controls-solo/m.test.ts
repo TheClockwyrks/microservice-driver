@@ -1,8 +1,8 @@
 // Carom — controls-solo/m: pressing `M` toggles mute.
 //
-// Mute is bound to the engine's `mute` action (specs/modes/single-player.md) and the
+// Mute is bound to the runtime's `mute` action (specs/modes/single-player.md) and the
 // bus it silences is the ENGINE's: the game implements no muting of its own, it
-// toggles the engine's from that action and mirrors the bit into
+// toggles the runtime's from that action and mirrors the bit into
 // `CaromState.muted`, which is what `snapshot()` reports (specs/ui.md,
 // specs/instrumentation.md). The mute key works on any screen, so this drives it
 // from the title, where mute starts off — and it is the same key on the same
@@ -10,10 +10,10 @@
 // the other.
 //
 // Two things are asserted, because the reported bit alone is only half of it.
-// The flag flips, and flips back — it is a toggle, not a latch. And the engine's
+// The flag flips, and flips back — it is a toggle, not a latch. And the runtime's
 // bus really is silenced: a cue played while muted is still announced, at a gain
 // of zero, so a build that flipped a boolean of its own and left the bus running
-// is told apart from one that muted the engine.
+// is told apart from one that muted the runtime.
 
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -46,7 +46,7 @@ it("flips the reported mute bit on, and off again", async () => {
   expect(h.snapshot().muted).toBe(false);
 });
 
-it("silences the engine's cue bus while it is on", async () => {
+it("silences the runtime's cue bus while it is on", async () => {
   await h.advance(1);
   await h.tap("KeyM");
   expect(h.snapshot().muted).toBe(true);

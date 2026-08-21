@@ -8,7 +8,7 @@
 // the paddles produces a surface that is present and useless, and that is what a
 // snapshot read off a real, driven match catches.
 //
-// The clock, the keyboard, and the overlay are the engine's under this engine, so
+// The clock, the keyboard, and the overlay are the runtime's under this runtime, so
 // `window.__carom` carries no operation for any of them (specs/instrumentation.md
 // strikes `step`, `setAutoStep`, `keyDown`, `keyUp` and `press`), and demanding
 // them here would fail a perfectly conformant build. What remains is the list
@@ -24,7 +24,7 @@ import { FIELD_CY, HOLD_TIME } from "../../src/constants";
 import { CAROM_DEBUG_VERSION } from "../../src/debug";
 import { createHarness, startPlaying, type Harness } from "../harness";
 
-/** Every operation the surface must carry under this engine. */
+/** Every operation the surface must carry under this runtime. */
 const REQUIRED_OPS = [
   "reset",
   "snapshot",

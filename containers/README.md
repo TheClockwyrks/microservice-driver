@@ -110,19 +110,18 @@ full set is whatever [`build.sh`](#building) builds; the notable ones:
   — the base image plus the baked-in `music` binary, copied out of the tool-music
   image. The instrument bank it plays arrives at container start;
 - the **adversarial** image, which every
-  [adversarial](https://docs.testcabinet.ai/testing/adversarial/overview/)
-  run executes in — **base-wasm** (which supplies the Rust + `wasm32-unknown-unknown`
-  toolchain a model's controller builds to a wasm core module with in-container)
-  plus the Foray tooling compiled from the engines submodule's `engines/crates/`: the
-  baked-in `foray` CLI, the
-  controller buildkit, and the reference modules + map; and
+  [adversarial](https://docs.testcabinet.ai/testing/adversarial/overview/) run executes
+  in — **base-wasm** (which supplies the Rust + `wasm32-unknown-unknown` toolchain a
+  model's controller builds to a wasm core module with in-container) plus the Foray
+  tooling compiled from the engines repository's `crates/` at the locked commit: the
+  baked-in `foray` CLI, the controller buildkit, and the reference modules + map; and
 - the **performance** image, which every
-  [performance](https://docs.testcabinet.ai/testing/performance/overview/)
-  run executes in — **base-wasm** (which supplies the Rust + `wasm32-unknown-unknown`
-  toolchain a model's engine builds to a wasm core module with in-container) plus
-  the Lattice tooling compiled from the engines submodule's `engines/crates/`: the
-  baked-in `lattice` CLI, the
-  engine buildkit, the reference engines, and the committed training scenarios.
+  [performance](https://docs.testcabinet.ai/testing/performance/overview/) run executes
+  in — **base-wasm** (which supplies the Rust + `wasm32-unknown-unknown` toolchain a
+  model's engine builds to a wasm core module with in-container) plus the Lattice
+  tooling compiled from the engines repository's `crates/` at the locked commit: the
+  baked-in `lattice` CLI, the engine buildkit, the reference engines, and the committed
+  training scenarios.
 
 With one exception, none is a per-harness image — a run installs the selected
 harness's CLI into the image at run time, by running the harness's `install`
@@ -236,10 +235,6 @@ containers/
 │                               #   published pack under /opt/tcab-audio, which the driver
 │                               #   image copies in and a run's declared packs are staged
 │                               #   out of. Not a run image (see Building)
-├── sample-packs/               # the clip registry (clips.toml), one <pack>.toml per
-│                               #   pack, and objects.lock.json; the audio is NOT
-│                               #   committed — clip bytes live in the audio object store
-│                               #   and are staged into the audio store
 ├── adversarial/                # the base image plus the wasm toolchain + Foray tooling
 │   ├── Dockerfile              #   (foray CLI, references + map, controller buildkit)
 │   └── buildkit/Cargo.toml     #   de-workspaced root for the baked buildkit crates
@@ -264,16 +259,17 @@ unprivileged `node` user whose home is configured so both a harness's install
 command and a test case's init command can install software at run time without
 root.
 
-The base image deliberately does **not** install the Playwright npm package or
-the Chromium browser binary. A test case that needs a browser provides Playwright
-as a dependency in its [workspace](/testing/end-to-end/overview/#workspace) (for
-example a `package.json` pinning `playwright`) and installs it with the case's
-[init command](/testing/end-to-end/overview/#init) (`npm install` then
-`npx playwright install chromium`). This keeps browser tooling a visible,
-project-local dependency a model installs and uses through its own project,
-rather than a global tool a model has to know is already on the machine. Only the
-OS-level libraries Chromium links against live in the image, because the
-unprivileged run user cannot `apt-get` them at init time.
+The base image deliberately does **not** install the Playwright npm package or the
+Chromium browser binary. A test case that needs a browser provides Playwright as a
+dependency in its
+[workspace](https://docs.testcabinet.ai/testing/end-to-end/overview/#workspace) (for
+example a `package.json` pinning `playwright`) and installs it with the case's [init
+command](https://docs.testcabinet.ai/testing/end-to-end/overview/#init) (`npm install`
+then `npx playwright install chromium`). This keeps browser tooling a visible,
+project-local dependency a model installs and uses through its own project, rather than
+a global tool a model has to know is already on the machine. Only the OS-level libraries
+Chromium links against live in the image, because the unprivileged run user cannot
+`apt-get` them at init time.
 
 It likewise installs **no agent harness** and **no Test Cabinet binary**. The
 harness CLI is installed into the container at run time from the harness's
@@ -291,7 +287,7 @@ The base run image carries nothing for the **shippable Test Cabinet packages**
 [`packages`](https://docs.testcabinet.ai/testing/end-to-end/manifests/) has
 them **vendored into its run repository at seed time**, so the produced tree is
 self-contained. The packages that get vendored come from a host **package store**
-baked into the [driver image](../deployments/images/services.Dockerfile), which is
+baked into the [driver image](../Dockerfile), which is
 the image that seeds runs.
 
 ## Rust/wasm base image (`base-wasm`)
@@ -339,31 +335,32 @@ Some produced assets are **not self-describing data** the way a sprite PNG is: a
 [particle](https://docs.testcabinet.ai/testing/asset-generation/particle-binaries/)
 effect is a `system.json` a game plays by **simulating it live**, and a voxel/mesh
 rig is **posed** at runtime. A game that consumes one needs the _runtime that
-plays it_, not just the asset. Those runtimes already exist in this repo as the
-`@clockwyrks/*` libraries the in-repo viewers use
-([`@clockwyrks/particle-runtime`](../engines/packages/particle-runtime),
-[`@clockwyrks/voxel-runtime`](../engines/packages/voxel-runtime), from the
-`engines` repository, checked out at `engines/`); an end-to-end case
+plays it_, not just the asset. Those runtimes are the `engines` repository's
+`@clockwyrks/*` libraries the project's viewers use
+(`@clockwyrks/particle-runtime` and `@clockwyrks/voxel-runtime`, published to the
+project's feed at each engines tag); an end-to-end case
 names the ones it needs with the manifest's
 [`packages`](https://docs.testcabinet.ai/testing/end-to-end/overview/#packages)
 key, and the run consumes them as ordinary installed dependencies.
 
-Because these packages are private (never npm-published) and must match the format
-the validator and review UI play, they are **staged from this repo into a host
-package store** rather than fetched from a registry. The store lives at
+Because these packages are private (published to the project's feed alone, never to
+the public registry) and must match the format the validator and review UI play, they
+are **staged into a host package store** rather than fetched by a run. The store lives at
 `/opt/tcab-packages/@clockwyrks/<name>/` (world-readable) on the
-[driver image](../deployments/images/services.Dockerfile) — the image that seeds
+[driver image](../Dockerfile) — the image that seeds
 runs — each a publish-shaped copy: its `package.json` plus its built `dist/`. Any
 dependency **between** two shippable packages (for example `particle-runtime`'s
 type-only dependency on `asset-contract`) is rewritten to a relative `file:` path
-within the store, so the staged set resolves with no npm-published
-`@clockwyrks/*` package required.
+within the store, so the staged set resolves with no registry at all.
 
 Staging is done by
-[`scripts/stage-tcab-packages.mjs`](../scripts/stage-tcab-packages.mjs), run in a
-builder stage of the shared services Dockerfile (the build context is the repository
-root, so the stage can see `engines/packages/` and `contracts/packages/`). The script
-builds the npm workspace, then for each package in its **shippable list** copies the
+[`scripts/stage-tcab-packages.mjs`](../scripts/stage-tcab-packages.mjs), run in the
+driver image's `tcab-packages` stage. This repository's npm workspace depends on each
+shippable package at the version of the engines tag `Cargo.lock` pins (held there by
+`scripts/stage-tcab-packages.test.mjs`), so the stage's `npm ci`, authenticated to the
+feed through the `npmrc` build secret, installs them already built under
+`node_modules/@clockwyrks/`. The script builds nothing: for each package in its
+**shippable list** it copies the
 package's `package.json` and the files its `files` field publishes into
 `/opt/tcab-packages/@clockwyrks/<name>/`, pulling in and rewriting transitive
 `@clockwyrks/*` dependencies. The staged `package.json` drops the dev-only fields
@@ -371,7 +368,9 @@ package's `package.json` and the files its `files` field publishes into
 `repository`, `homepage`, `bugs`): it is vendored into a model's workspace, where a feed
 URL or the project's repository would name the project, and
 `scripts/stage-tcab-packages.test.mjs` stages the real set and holds every seeded
-manifest to the seeded-contract gate's strict list. The runtime stage `COPY --from`s
+manifest to the engines repository's `seeded-contract` gate's strict list, read from
+that repository at the commit `Cargo.lock` resolves (`scripts/lib/siblings.mjs`). The
+runtime stage `COPY --from`s
 that tree in.
 
 **How a case uses them, end to end.** A case declares
@@ -390,7 +389,8 @@ version the lockfile links it at; a store holding another version fails the seed
 The model imports the library like any other dependency (see
 [Packages](https://docs.testcabinet.ai/testing/end-to-end/overview/#packages)).
 
-**Engine runtimes share the store.** An [engine](../engines/engines/README.md) is the
+**Engine runtimes share the store.** An
+[engine](https://docs.testcabinet.ai/components/engines/overview/) is the
 runtime a produced game is built on, and its package is staged into the same store
 by the same script. An engine is selected per run rather than declared by a case,
 so the case ships one workspace per engine, each declaring that engine's package at
@@ -399,44 +399,42 @@ selected engine at the path its workspace declares without rewriting either file
 The version of the staged engine package is read at seed time and recorded on the
 run.
 
-**The lockstep rule** is the same one the baked binaries carry: the staged
-package format must match what `crates/driver` and the review UI expect, so **build
-the base image from the same commit as the orchestrator**. The two lists differ by
-design: the script's shippable list is everything staged into the store, while the
-`SHIPPABLE_PACKAGES` allowlist in
-[`contracts/crates/contracts/src/test_case.rs`](../contracts/crates/contracts/src/test_case.rs)
-is the smaller set a case may declare with `packages`. An engine package appears in the staging
-list alone, because a run selects it. So does `@clockwyrks/case-harness`, the
-shared harness a case's engineless validators are written over: nothing seeds it
-into a run repository at all, the reporter copying it out of the store into the
-staged validator project once the container is gone (see
-[Validation](https://docs.testcabinet.ai/components/driver/validation/)). A case
-able to declare it would be handed the suites it is measured by. Every name in the
-allowlist must appear in the staging list, so a case only ever names a package the
-image carries.
+**The lockstep rule** is the same one the baked binaries carry: the staged package
+format must match what `crates/driver` and the review UI expect, so the packages are the
+ones of the engines tag the driver's engine crates come from, and a bump of that tag
+moves both together. The two lists differ by design: the script's shippable list is
+everything staged into the store, while the `SHIPPABLE_PACKAGES` allowlist in the
+contracts repository's `crates/contracts/src/test_case.rs` is the smaller set a case may
+declare with `packages`. An engine package appears in the staging list alone, because a
+run selects it. So does `@clockwyrks/case-harness`, the shared harness a case's
+engineless validators are written over: nothing seeds it into a run repository at all,
+the reporter copying it out of the store into the staged validator project once the
+container is gone (see
+[Validation](https://docs.testcabinet.ai/components/driver/validation/)). A case able to
+declare it would be handed the suites it is measured by. Every name in the allowlist
+must appear in the staging list, so a case only ever names a package the image carries.
 
 ### Adding a package to the shippable set
 
 The set is meant to grow as more produced-asset runtimes are consumed by games.
 To add one:
 
-1. **Make the package shippable.** It must build to a `dist/` with a package
-   `exports` map and a `files` field listing what to publish (as
-   `engines/packages/particle-runtime` and `engines/packages/voxel-runtime` already
-   do). It should be framework-agnostic and MIT-licensed; a peer dependency the _game_ provides
-   (for example `three`) is fine, since the game installs it, but a hard dependency
-   on an npm-published package is not.
-2. **Add it to the shippable list** in
+1. **Make the package shippable.** In the engines repository, it must build to a `dist/`
+   with a package `exports` map and a `files` field listing what to publish (as
+   `particle-runtime` and `voxel-runtime` already do), and be published to the feed at
+   an engines tag. It should be framework-agnostic and MIT-licensed; a peer dependency
+   the _game_ provides (for example `three`) is fine, since the game installs it, but a
+   hard dependency on an npm-published package is not.
+2. **Depend on it** in this repository's `package.json` at the engines tag's version,
+   and **add it to the shippable list** in
    [`scripts/stage-tcab-packages.mjs`](../scripts/stage-tcab-packages.mjs). Any
    `@clockwyrks/*` package it depends on is staged and rewritten automatically;
    it need not be listed separately unless a case imports it directly.
 3. **Add its name to the `SHIPPABLE_PACKAGES` allowlist** in
-   [`contracts/crates/contracts/src/test_case.rs`](../contracts/crates/contracts/src/test_case.rs)
+   the contracts repository's `crates/contracts/src/test_case.rs`
    so a case may declare it. Keep this in lockstep with step 2.
-4. **Rebuild the base image** (`./build.sh base`; for the local cluster,
-   `make -C deployments/local run-images-e2e` to rebuild and re-import just the
-   base, or `run-images` for the whole set). The asset-generation images inherit it
-   via `FROM` the base.
+4. **Rebuild the driver image**, which carries the store (for the local cluster, the
+   superrepo's `make -C deployments/local` targets rebuild and re-import it).
 
 ## Asset-generation images
 
@@ -445,10 +443,10 @@ Asset-generation runs split by
 a single-sprite case draws with `draw`, a sprite-sheet case draws with `draw-sheet`. Each
 gets its own image so a run carries only the tool it uses:
 
-- `sprite/` is the base image plus exactly the **`draw`** binary, the drawing tool
-  a single-sprite
-  [asset-generation](https://docs.testcabinet.ai/testing/asset-generation/overview/)
-  run uses, copied out of the `tool-sprite` image (see [the tool images](#the-tool-images)).
+- `sprite/` is the base image plus exactly the **`draw`** binary, the drawing tool a
+  single-sprite
+  [asset-generation](https://docs.testcabinet.ai/testing/asset-generation/overview/) run
+  uses, copied out of the `tool-sprite` image (see [the tool images](#the-tool-images)).
 - `sprite-sheet/` is the base image plus exactly the **`draw-sheet`** binary, the
   drawing tool a sprite-sheet run uses (`draw` plus a required `--frame` on every
   operation), copied out of the `tool-sprite` image likewise.
@@ -534,39 +532,24 @@ it builds alongside them, so they all stay in lockstep.
 
 ### Adding a `COPY` from the build context
 
-`.dockerignore` at the repository root is an **allowlist**: it ignores everything
-(`*`) and then re-includes, by name, the paths a build actually reads. So a new
-`COPY <path>` in any Dockerfile here needs a matching `!/<path>` line — otherwise
-the build dies with `failed to compute cache key: "/<path>": not found`, preceded
-by `transferring context: 2B`, and nothing in the repository has changed to
-explain it. This has bitten twice (the Blender image's authoring helpers; the gg
-toolchain builder's Java installer, which took every `-gg` variant down with it,
-because `build.sh` is `set -euo pipefail` and built that builder before all of
-them while gg was built here). `scripts/ci/build-context.sh` is the gate: it reads every tracked
-Dockerfile against `.dockerignore` and fails on a source that is missing or
-excluded, so the mistake is caught at commit time rather than the next time
-someone needs a run container. Run it after adding a `COPY`.
+`.dockerignore` at the repository root is an **allowlist**: it ignores everything (`*`)
+and then re-includes, by name, the paths a build actually reads. So a new `COPY <path>`
+in any Dockerfile here needs a matching `!/<path>` line — otherwise the build dies with
+`failed to compute cache key: "/<path>": not found`, preceded by `transferring context:
+2B`, and nothing in the repository has changed to explain it. This has bitten twice (the
+Blender image's authoring helpers; the gg toolchain builder's Java installer, which took
+every `-gg` variant down with it, because `build.sh` is `set -euo pipefail` and built
+that builder before all of them while gg was built here). `scripts/ci/build-context.sh`
+is the gate: it reads every tracked Dockerfile against `.dockerignore` and fails on a
+source that is missing or excluded, so the mistake is caught at commit time rather than
+the next time someone needs a run container. Run it after adding a `COPY`.
 
 **And after baking a new tree into a binary with `include_str!`**, which is the same
 mistake with a different corpse. `crates/driver` embeds the built-in orchestrators and
-the harness manifests, and the engines repository's `crates/engines` the engine
-manifests (`engines/engines/`), from directories their `include_str!` paths climb out
-of `crates/` to reach, and the whole-context
-`COPY` those builds do succeeds whatever the allowlist admits — so a tree that was
-never re-included fails minutes later as
-``error: couldn't read `crates/engines/src/../../../engines/none/engine.toml` ``, which
-reads as a broken checkout. That is how the engine manifests came to be missing when engines
-landed, taking every service image (all six are built by the one cargo stage that
-compiles `test-cabinet-engines`) and `make local-up` with it. The gate reads those
-paths out of the Rust sources now, those of the submodules the context admits
-included, so the list cannot fall behind.
-
-**And after a gg installer reads a new file.** The devcontainer image stages a slice
-of the `gg/` checkout (every arm's pin and the files those pins read) and runs gg's
-toolchain installers against it, which read them by `$REPO_ROOT/<path>` rather than
-through a `COPY` the gate could point at. So the gate reads those literals out of
-`gg/scripts/ci/install-*.sh` and asserts each survives the allowlist as `gg/<path>`,
-and names the check as not made in a checkout that has not initialized `gg/`.
+the harness manifests from directories its `include_str!` paths climb out of `crates/`
+to reach, so a tree the driver image's `build` stage never copies fails minutes later
+as a `couldn't read` error that reads as a broken checkout. The gate reads those paths
+out of the Rust sources, so the list cannot fall behind.
 
 ## The audio store
 
@@ -576,17 +559,21 @@ tool mixes over a sample library and the `music` tool plays an instrument bank. 
 case declares the packs it draws from in `[audio] packs`, and its run container is given
 those packs and no others.
 
-The audio files themselves are **not committed to this repository**. What lives
-under `sample-packs/` is the metadata: `clips.toml`, the registry naming every
-ingested audio clip by the sha256 of its source bytes and recording its license
-(CC0 or otherwise permissive, so a produced clip is freely usable in a test case
-and a published run); one `<pack>.toml` per pack, listing the clip ids that pack
-exposes with the `name`, `tags`, and `description` a model browses; and
-`objects.lock.json`, pinning the published bytes. The clip bytes live in a private
-audio object store, both as originals and as the normalized output of each pack's
-normalization profile, so a consumer downloads finished audio rather than
-re-normalizing it. See [`sample-packs/README.md`](sample-packs/README.md) for the
-registry, manifest, and publishing details.
+The audio files themselves are **committed to no repository**. What
+`microservice-backend` holds under `containers/sample-packs/` is the metadata:
+`clips.toml`, the registry naming every ingested audio clip by the sha256 of its source
+bytes and recording its license (CC0 or otherwise permissive, so a produced clip is
+freely usable in a test case and a published run); one `<pack>.toml` per pack, listing
+the clip ids that pack exposes with the `name`, `tags`, and `description` a model
+browses; and `objects.lock.json`, pinning the published bytes. The clip bytes live in a
+private audio object store, both as originals and as the normalized output of each
+pack's normalization profile, so a consumer downloads finished audio rather than
+re-normalizing it. That repository's `containers/sample-packs/README.md` covers the
+registry, manifest, and publishing details. The stager reads the packs, and the clip
+store module that hashes them, from a checkout of the backend found as
+[`scripts/lib/siblings.mjs`](../scripts/lib/siblings.mjs) says: `TCAB_BACKEND_DIR`,
+`../microservice-backend` in the superrepo, the superrepo's root while it still holds
+them, then a sparse clone of the public mirror.
 
 ### The store
 
@@ -623,8 +610,8 @@ the pull fails), materializes it straight out of the audio object store instead.
 **The image is never the only source, and it must not be.** It is published _behind_
 the object store, so anyone who has just published a pack would otherwise have to
 push a container image before they could hear it. Every consumer therefore has a
-path that skips the registry: `--stage` here, and
-[`deployments/local/Makefile`](../deployments/local/Makefile)'s `audio-store` target,
+path that skips the registry: `--stage` here, and the superrepo's
+`deployments/local/Makefile` `audio-store` target,
 which builds the store from the checkout and hands the driver image build that ref
 so a local `make images` pulls no audio at all.
 
@@ -633,13 +620,10 @@ so a local `make images` pulls no audio at all.
 Core stages a run's declared packs out of the store and materializes them at
 `/opt/audio` when the container starts, before the harness runs:
 
-```
-/opt/audio/
-  .tcab-audio-contract                  baked by the base image; the staging contract version
-  packs.json                            the packs this run was given, and its per-kind defaults
-  packs/<name>@<version>/pack.toml      one per declared pack
-  clips/<clip-id>.<profile-id>.wav      the union of those packs' clips
-```
+``` /opt/audio/ .tcab-audio-contract                  baked by the base image; the
+staging contract version packs.json                            the packs this run was
+given, and its per-kind defaults packs/<name>@<version>/pack.toml      one per declared
+pack clips/<clip-id>.<profile-id>.wav      the union of those packs' clips ```
 
 The store and the container share one layout, so a `pack.toml` is byte-copied and
 its relative `file` entries resolve unchanged. Nothing lands under `/work`: only
@@ -657,10 +641,9 @@ The staging rules and the `packs.json` shape are in
 and how the audio tools resolve a pack out of it is in
 [`audio-binaries.md`](https://docs.testcabinet.ai/testing/asset-generation/audio-binaries/#the-sample-library).
 
-Adding a bank is: extend the `BANKS` registry in
-[`scripts/curate-instrument-bank.mjs`](../scripts/curate-instrument-bank.mjs),
-ingest and publish it, then name it from a test case. Publishing a pack version
-needs no run-image rebuild.
+Adding a bank is: extend the `BANKS` registry in `microservice-backend`'s
+`scripts/curate-instrument-bank.mjs`, ingest and publish it, then name it from a test
+case. Publishing a pack version needs no run-image rebuild.
 
 ## Adversarial image
 
@@ -676,8 +659,10 @@ world-readable, with a run-user-owned cargo registry — see the **base-wasm** s
 above). This image adds only the Foray tooling.
 
 Like the asset-generation images, this one **also bakes in The Test Cabinet's own
-tooling**, compiled from the engines submodule's `engines/crates/` in a multi-stage
-build and copied under
+tooling**, compiled from the engines repository's `crates/` at the commit this
+repository's `Cargo.lock` resolves it to (checked out by
+[`scripts/engines-checkout.sh`](../scripts/engines-checkout.sh) and built against a
+copy of that lock) in a multi-stage build and copied under
 `/usr/local/bin` and `/opt/foray`:
 
 - the **`foray` CLI** (`/usr/local/bin/foray`) — the binary a model runs its
@@ -698,10 +683,10 @@ The same coupling argument as the asset-generation binaries applies: the CLI, th
 buildkit crates, and the reference modules must match the engine the validator
 scores against, so **build this image from the same commit as the orchestrator**
 (a run records both the orchestrator commit and the image digest, so a mismatch is
-auditable). Compiling them is why the build context is the repository root rather
+auditable). Reading the lock is why the build context is the repository root rather
 than the image's directory (see `build.sh`); the build also smoke-compiles the
-buildkit standalone, so a buildkit root that has drifted from the repository's
-workspace dependencies fails the image build.
+buildkit standalone, so a buildkit root that has drifted from the engines
+workspace's dependencies fails the image build.
 
 ## Performance image
 
@@ -717,8 +702,10 @@ Rust toolchain from base-wasm (system-wide, world-readable, with a run-user-owne
 cargo registry). This image adds only the Lattice tooling.
 
 Like the adversarial image, this one **also bakes in The Test Cabinet's own
-tooling**, compiled from the engines submodule's `engines/crates/` in a multi-stage
-build and copied under
+tooling**, compiled from the engines repository's `crates/` at the commit this
+repository's `Cargo.lock` resolves it to (checked out by
+[`scripts/engines-checkout.sh`](../scripts/engines-checkout.sh) and built against a
+copy of that lock) in a multi-stage build and copied under
 `/usr/local/bin` and `/opt/lattice`:
 
 - the **`lattice` CLI** (`/usr/local/bin/lattice`) — the binary a model runs to
@@ -731,22 +718,27 @@ build and copied under
   re-supplies their `workspace = true` inheritance) that the seeded `engine` crate
   path-depends on to build — so the run workspace vendors nothing;
 - the **training scenarios** (`/opt/lattice/training`, each
-  `<name>/{scenario.json,expected.json}`) — the labelled practice set, copied from
-  the case's version folder. `$LATTICE_HOME` is set to `/opt/lattice` so specs and
-  a model can name these by `$LATTICE_HOME/training/…` rather than a hard-coded
-  path. The **held-out scored set is never baked here** — it lives only with the
-  case, so a model cannot reach it. Neither are the reference engines: the model's
-  only route to the reference is the `lattice` CLI's oracle, which reports
-  correctness and the model's own fuel, never the reference's.
+  `<name>/{scenario.json,expected.json}`) — the labelled practice set of the frozen
+  Lattice case version, which belongs to the `test-suites` repository: `build.sh` stages
+  it into the build context first with
+  [`scripts/ci/lattice-training.sh`](../scripts/ci/lattice-training.sh), from
+  `TCAB_DEFINITIONS_ROOT`, `../test-suites` in the superrepo, or a sparse clone of the
+  public mirror, and the image's inputs digest carries its content. `$LATTICE_HOME` is
+  set to `/opt/lattice` so specs and a model can name these by
+  `$LATTICE_HOME/training/…` rather than a hard-coded path. The **held-out scored set is
+  never baked here** — it lives only with the case, so a model cannot reach it. Neither
+  are the reference engines: the model's only route to the reference is the `lattice`
+  CLI's oracle, which reports correctness and the model's own fuel, never the
+  reference's.
 
 The same coupling argument as the adversarial tooling applies: the CLI, the
 buildkit crates, and the training set must match the types and checksum the
 validator scores against, so **build this image from the same commit as the
 orchestrator** (a run records both the orchestrator commit and the
-image digest, so a mismatch is auditable). Compiling them is why the build context
-is the repository root rather than the image's directory (see `build.sh`); the
-build also smoke-compiles the buildkit standalone, so a buildkit root that has
-drifted from the repository's workspace dependencies fails the image build.
+image digest, so a mismatch is auditable). Reading the lock and the staged training
+set is why the build context is the repository root rather than the image's directory
+(see `build.sh`); the build also smoke-compiles the buildkit standalone, so a buildkit
+root that has drifted from the engines workspace's dependencies fails the image build.
 
 ## Building
 
@@ -877,11 +869,11 @@ repository's image through a global `TOOL_SFX_SYNTH_IMAGE`, `TOOL_SFX_SAMPLE_IMA
 `TOOL_MUSIC_IMAGE` build arg and the stage `FROM` it, and both full-stack images copy
 all three the same way. `tool-audio-core` is a library and publishes no image.
 
-The commit is the one the driver pins: the superrepo's gitlink for the repository
-(`git rev-parse HEAD:tool-sprite`, `git rev-parse HEAD:tool-paint`,
-`git rev-parse HEAD:tool-particle`, `git rev-parse HEAD:tool-voxel`, …). For
-`tool-sprite` it is the commit the driver's `test-cabinet-draw` dependency resolves to as
-well, so the binary a run draws with and the library the orchestrator regenerates its
+The commit is the one the driver pins: the repository's line in
+[`tool-images.toml`](tool-images.toml). For `tool-sprite` it is the commit the driver's
+`test-cabinet-draw` dependency resolves to in `Cargo.lock` as well (and
+`scripts/ci/tool-images.sh lock`, which the `shell-tests` gate runs, holds the two
+equal), so the binary a run draws with and the library the orchestrator regenerates its
 image with are the same code; for `tool-voxel` it is likewise the commit of the driver's
 `test-cabinet-voxel`, through which it replays a voxel run's operation log.
 `scripts/ci/tool-images.sh list` names each tool image's reference and build arg, and
@@ -890,26 +882,26 @@ image with are the same code; for `tool-voxel` it is likewise the commit of the 
 - under `PUSH`, the pinned reference, pulled before the first image that copies from it
   (the registry needs `az acr login -n testcabinet`). A published run image carries the
   published tool, never a local build of it. `scripts/ci/run-images.sh` runs
-  `scripts/ci/tool-images.sh check` before it builds anything, so a gitlink at a commit
+  `scripts/ci/tool-images.sh check` before it builds anything, so a pin of a commit
   the repository's pipeline has not published fails there, naming the commit.
 - without `PUSH` (the local path), the image it builds first from the repository's
-  checkout (`tool-sprite/`, `tool-paint/`, `tool-particle/`, `tool-voxel/`, `tool-mc/`,
-  `tool-sn/`, `tool-dc/`, `tool-sfx-synth/`, `tool-sfx-sample/`, `tool-music/`) with
-  that repository's own Dockerfile, tagged `test-cabinet-<repository>:<tag>` and never
+  checkout beside this one (`../tool-sprite/`, `../tool-paint/`, …, the superrepo's
+  submodules; `TOOL_CHECKOUTS` names another parent directory) with that repository's
+  own Dockerfile, tagged `test-cabinet-<repository>:<tag>` and never
   pushed. It is rebuilt on every invocation that needs it rather than reused when
   present — it carries the binaries, so a stale one would bake yesterday's `particle-3d`
   into today's run image — and its cargo cache mounts make a no-change rebuild cheap.
-  `./build.sh tool-sprite` builds just it; `make -C deployments/local run-images`
-  builds every tool image first. A missing checkout fails, naming
-  `git submodule update --init <repository>`.
+  `./build.sh tool-sprite` builds just it; the superrepo's
+  `make -C deployments/local run-images` builds every tool image first. With no
+  checkout there, the pinned reference is pulled, as under `PUSH`.
 - `TOOL_SPRITE_IMAGE=<reference>` (`TOOL_PAINT_IMAGE` for `tool-paint`,
   `TOOL_PARTICLE_IMAGE` for `tool-particle`, `TOOL_VOXEL_IMAGE` for `tool-voxel`, and so
   on) overrides both, for trying another build of the tool.
 
 The reference is an input of the copying images' digests in
-`scripts/ci/run-image-inputs.sh`, so a bump of the gitlink rebuilds exactly the images
+`scripts/ci/run-image-inputs.sh`, so a bump of the pin rebuilds exactly the images
 that copy from it. A tool that moves to its own repository later is added to
-`TOOL_REPOSITORIES` in `scripts/ci/tool-images.sh` and taken the same way, by the build
+`tool-images.toml` and taken the same way, by the build
 arg its name derives (`tool-<name>` → `TOOL_<NAME>_IMAGE`).
 
 ### The gg toolchain builder
@@ -974,8 +966,8 @@ the gate is a check per environment rather than a check on one.
 
 The tree carries **PureScript**'s toolchain today: `purs` and `esbuild`, both statically
 linked, both a single file, and both pinned by
-[`gg/packages/gg-sandbox-purescript/purescript-version.sh`](../gg/packages/gg-sandbox-purescript/purescript-version.sh)
-and installed by [`gg/scripts/ci/install-purescript.sh`](../gg/scripts/ci/install-purescript.sh)
+`gg/packages/gg-sandbox-purescript/purescript-version.sh` (in the `gg` repository)
+and installed by `gg/scripts/ci/install-purescript.sh` (in the `gg` repository)
 — which the Dockerfile runs rather than duplicating, so a pin is edited in one place. (It
 used to pass the two versions in as build args over `ARG` defaults that restated them; a
 default is a second answer, correct only until somebody edits the version file, and it was
@@ -988,9 +980,9 @@ another.
 
 It carries **Java**'s too, and that one is not a single file: a Temurin JDK (javac is a
 JDK, not a JRE) and ~29 MB of TeaVM jars, pinned by
-[`gg/packages/gg-sandbox-java/java-version.sh`](../gg/packages/gg-sandbox-java/java-version.sh)
+`gg/packages/gg-sandbox-java/java-version.sh` (in the `gg` repository)
 and installed by
-[`gg/scripts/ci/install-java.sh`](../gg/scripts/ci/install-java.sh) — which the
+`gg/scripts/ci/install-java.sh` (in the `gg` repository) — which the
 Dockerfile runs rather than duplicating, so the list of jars exists once. A JDK is not
 excluded by the "shared process" constraint above: gg drives it through a **pool** of warm
 JVMs that lends each to one preparation at a time, which is what makes a warm build
@@ -1002,7 +994,7 @@ the vintage reason PureScript's library set is not here either.
 **Kotlin** rides on top of that, and adds ~67 MB of compiler jars and nothing else: a
 Kotlin program is compiled to JVM bytecode and handed to the _same_ TeaVM, so everything
 from bytecode onwards already exists here. Its installer
-([`gg/scripts/ci/install-kotlin.sh`](../gg/scripts/ci/install-kotlin.sh)) runs the Java one
+(`gg/scripts/ci/install-kotlin.sh` (in the `gg` repository)) runs the Java one
 rather than installing a second JDK beside it. Everything it writes is a classpath entry:
 a model's program is an ordinary Kotlin file with its own `fun main()`, so the compiler
 needs its own jars and nothing else.
@@ -1030,7 +1022,7 @@ shared libraries the published linker was built against. That last one is the wh
 its install is a script rather than two `curl`s: the toolchain is built for Debian 12 and
 its `lld` links against that distribution's `libxml2` soname, which the Debian-derived run
 images have and `blender-gg`'s Ubuntu does not — and this tree is copied to the same
-absolute path in both. So [`gg/scripts/ci/install-swift.sh`](../gg/scripts/ci/install-swift.sh)
+absolute path in both. So `gg/scripts/ci/install-swift.sh` (in the `gg` repository)
 puts that library and its closure under `<home>/lib`, and gg names that directory on
 `LD_LIBRARY_PATH` for every compile. What is kept out of 3.3 GB is the driver, the front
 end, `clang`, `lld` and the transitive closure of the shared objects those actually need —
@@ -1050,7 +1042,7 @@ to make portable, and that is the toolchain rather than the script: `clang` find
 sysroot from its own path, every binary carries an `$ORIGIN/../lib` rpath, and the only
 things outside the tree it needs are the sonames its Debian build links that glibc does
 not provide — the two GCC-runtime ones and `libtinfo` — so
-[`gg/scripts/ci/install-wasi-sdk.sh`](../gg/scripts/ci/install-wasi-sdk.sh)
+`gg/scripts/ci/install-wasi-sdk.sh` (in the `gg` repository)
 copies each of them in beside it, where that rpath finds them and nothing else
 in the image does. No
 `LD_LIBRARY_PATH`; the closure is walked to decide that list rather than to place it. What
@@ -1072,7 +1064,7 @@ native host, so its ELF closure looks complete on any glibc. It is not: the runt
 `dlopen`s ICU (`libicuuc`, `libicui18n`, `libicudata`) out of
 `libSystem.Globalization.Native.so` at startup, `ldd` reports nothing missing, and a `csc`
 with no ICU beside it `FailFast`s with SIGABRT before it writes a line to stdout. So
-[`gg/scripts/ci/install-dotnet.sh`](../gg/scripts/ci/install-dotnet.sh) vendors the three
+`gg/scripts/ci/install-dotnet.sh` (in the `gg` repository) vendors the three
 libraries into `<home>/lib`, and gg names that directory on `LD_LIBRARY_PATH` for every
 `dotnet` it runs — the Swift arrangement, for the same reason and by a different route.
 Invariant-globalization mode would also start the compiler and is not used: it changes
@@ -1099,10 +1091,11 @@ distribution (see `https://docs.testcabinet.ai/components/driver/execution/`).
 
 Each registry round trip that writes or fetches (a push, a pull, a `docker buildx
 imagetools create`) is tried up to `REGISTRY_ATTEMPTS` times (default 4), waiting
-`REGISTRY_RETRY_DELAY` seconds (default 10) times the attempt number between tries, because
-a registry refusing a connection for a moment is a failure the next attempt clears and
-every one of those operations is idempotent. One that fails every attempt ends the build
-at that image: nothing after it is pushed under its name, and it prints no reference.
+`REGISTRY_RETRY_DELAY` seconds (default 10) times the attempt number between tries,
+because a registry refusing a connection for a moment is a failure the next attempt
+clears and every one of those operations is idempotent. One that fails every attempt
+ends the build at that image: nothing after it is pushed under its name, and it prints
+no reference.
 
 `RECLAIM=1`, set alongside `PUSH=1`, additionally reclaims as it goes: once an image is
 pushed and nothing later in the build order is `FROM` it, `build.sh` removes it from the
@@ -1118,8 +1111,8 @@ An image still in the store after its tags went is reported with the tags holdin
 builder prune is `docker builder prune --all`, which takes every `--mount=type=cache`
 record in the builder — and on a development box the default builder is the one BuildKit
 instance the whole Docker daemon shares. So it would also take
-[`deployments/images/services.Dockerfile`](../deployments/images/services.Dockerfile)'s
-cargo mounts, which hold the services' release compile, plus every other project's build
+the driver image's [`Dockerfile`](../Dockerfile) cargo mounts, which hold its release
+compile, plus every other project's build
 cache on that daemon. The `PUSH=1`
 command above therefore leaves your local store and builder untouched;
 [`scripts/ci/run-images.sh`](../scripts/ci/run-images.sh) is the only caller that sets
@@ -1136,19 +1129,18 @@ already had. So the CI build is **content-addressed**: `REUSE_INPUTS=<table>` ha
 pushed image is not built.
 
 The table is what [`scripts/ci/run-image-inputs.sh`](../scripts/ci/run-image-inputs.sh)
-prints: one `<name> <digest> <parents>` line for every image `image-names.sh` lists.
-An image's digest covers its Dockerfile, every
-context path the Dockerfile copies (as `git ls-files -s` records them, so the index and
-not the working tree is what is described; a Dockerfile that copies `.` reads the whole
-context, which is the root `.dockerignore`'s listing; a path under a submodule, such as
-`contracts/`, is recorded as the submodule's pinned commit, the only entry the index holds
-for it), the digests of the images it is built from, the reference of every
-[tool image](#the-tool-images) it copies out of, and a schema constant. Anything that
-changes below an image therefore changes the image's own digest, and a change to the
-schema constant changes every digest at once, which is how a build is forced when an
-unpinned upstream (a base image named by tag, an apt package set, a toolchain fetched by
-version) has to be refreshed without a file in the repository changing: bump
-`INPUTS_SCHEMA` in that script.
+prints: one `<name> <digest> <parents>` line for every image `image-names.sh` lists. An
+image's digest covers its Dockerfile, every context path the Dockerfile copies (as `git
+ls-files -s` records them, so the index and not the working tree is what is described; a
+Dockerfile that copies `.` reads the whole context, which is the root `.dockerignore`'s
+listing), the digests of the images it is built from, the reference of every [tool
+image](#the-tool-images) it copies out of, the digest of the Lattice training scenarios
+for the performance image, and a schema constant. Anything that changes below an image
+therefore changes the image's own digest, and a change to the schema constant changes
+every digest at once, which is how a build is forced when an unpinned upstream (a base
+image named by tag, an apt package set, a toolchain fetched by version) has to be
+refreshed without a file in the repository changing: bump `INPUTS_SCHEMA` in that
+script.
 
 With the table, `build.sh` pushes every image it builds under two tags: the commit's
 (`<sha>-<arch>`) and `inputs-<digest>-<arch>`. Before it builds an image it looks the
@@ -1180,11 +1172,11 @@ arg and `COPY --from`s the tree out, and `scripts/fetch-audio-store.sh` pulls th
 same published image for a local `tcab validate`. Pulling it from `testcabinet.azurecr.io`
 needs `az acr login --name testcabinet` and `AcrPull`.
 
-It is the source for a machine that _cannot_ stage, not for one that can. A build
-in this repository that has the presign credentials should produce the store rather
-than pull it — `deployments/local/Makefile` overrides `AUDIO_STORE_IMAGE` with a
-locally-built ref for exactly that reason — so publishing an image is never on the
-path between changing audio and running with it.
+It is the source for a machine that _cannot_ stage, not for one that can. A build in
+this repository that has the presign credentials should produce the store rather than
+pull it — the superrepo's `deployments/local/Makefile` overrides `AUDIO_STORE_IMAGE`
+with a locally-built ref for exactly that reason — so publishing an image is never on
+the path between changing audio and running with it.
 
 Like the gg toolchain builder it is **not** a run image and never appears in
 `image-names.sh` — that list is the set of images a _run resolves_, and `build.sh`'s

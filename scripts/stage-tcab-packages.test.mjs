@@ -7,7 +7,12 @@
 // contract to. A manifest published to the project's feed carries the feed's URL
 // (`publishConfig`) and the project's `repository`, `homepage` and `bugs`, so the
 // staging script drops them; this stages the real closure and reads every manifest
-// it wrote.
+// it wrote. The list is read from the engines repository at the commit Cargo.lock
+// resolves it to (scripts/lib/siblings.mjs), since the feed carries no scripts.
+//
+// It also holds the npm workspace's dependency on each shippable package to the
+// engines tag Cargo.lock pins, so the libraries a run is seeded with are the ones
+// the driver's engine crates were built from.
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -17,11 +22,13 @@ import { dirname, join, resolve } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { siblingRoot } from "./lib/siblings.mjs";
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Read from the gate rather than copied, so the two lists cannot drift.
 const gate = readFileSync(
-  join(repoRoot, "engines/scripts/ci/seeded-contract-check.sh"),
+  join(siblingRoot("engines"), "scripts/ci/seeded-contract-check.sh"),
   "utf8",
 );
 const strict = (() => {
@@ -104,5 +111,32 @@ test("no seeded manifest names what a model must not learn", () => {
     if (NEVER_SEEDED.has(JSON.parse(text).name)) continue;
     const hits = text.split("\n").filter((line) => strict.test(line));
     assert.deepEqual(hits, [], `${path} names what a model must not learn`);
+  }
+});
+
+test("the workspace depends on each shippable package at the pinned engines tag", () => {
+  const lock = readFileSync(join(repoRoot, "Cargo.lock"), "utf8");
+  const tags = new Set(
+    [
+      ...lock.matchAll(
+        /^source = "git\+https:\/\/github\.com\/TheClockwyrks\/engines\?tag=v([^#"]+)#/gm,
+      ),
+    ].map((match) => match[1]),
+  );
+  assert.equal(tags.size, 1, `Cargo.lock names engines tags ${[...tags]}`);
+  const [version] = tags;
+  const { dependencies = {} } = JSON.parse(
+    readFileSync(join(repoRoot, "package.json"), "utf8"),
+  );
+  const script = readFileSync(
+    join(repoRoot, "scripts/stage-tcab-packages.mjs"),
+    "utf8",
+  );
+  const list = script.match(/^const SHIPPABLE = \[([\s\S]*?)^\];$/m)?.[1];
+  assert.ok(list, "could not read SHIPPABLE from stage-tcab-packages.mjs");
+  for (const [, name] of list
+    .replace(/\/\/.*$/gm, "")
+    .matchAll(/"(@clockwyrks\/[^"]+)"/g)) {
+    assert.equal(dependencies[name], version, `package.json pins ${name}`);
   }
 });

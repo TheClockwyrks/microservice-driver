@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Table test for tool-images.sh. Run it directly: scripts/ci/tool-images.test.sh
 #
-# A copy of the script runs in a throwaway git repository whose HEAD pins tool-sprite,
-# tool-paint, tool-particle, tool-voxel, tool-mc, tool-sn, tool-dc, tool-sfx-synth,
-# tool-sfx-sample and tool-music as gitlinks, with a docker stub whose registry is a file
-# of references. The subject is
-# the reference each tool image is named by, the override, and that `check` fails naming
-# the pinned commit when the registry lacks it.
+# A copy of the script runs in a throwaway repository whose containers/tool-images.toml
+# pins tool-sprite, tool-paint, tool-particle, tool-voxel, tool-mc, tool-sn, tool-dc,
+# tool-sfx-synth, tool-sfx-sample and tool-music, beside a Cargo.lock naming two of them,
+# with a docker stub whose registry is a file of references. The subjects are the
+# reference each tool image is named by, the override, that `check` fails naming the
+# pinned commit when the registry lacks it, the pin file's shape, and that `lock` holds
+# the pins to the lock. The last case runs `lock` over this repository's own files.
 set -uo pipefail
 
 CI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,7 +80,7 @@ tool-mc TOOL_MC_IMAGE ${MC_REF}
 tool-sn TOOL_SN_IMAGE ${SN_REF}
 tool-dc TOOL_DC_IMAGE ${DC_REF}"
 repo="$tmp/repo"
-mkdir -p "$repo/scripts/ci"
+mkdir -p "$repo/scripts/ci" "$repo/containers"
 cp "$CI_DIR/tool-images.sh" "$CI_DIR/tcab-lib.sh" "$repo/scripts/ci/"
 cat >"$tmp/docker" <<'STUB'
 #!/usr/bin/env bash
@@ -88,19 +89,44 @@ echo "$*" >>"$STUB_LOG"
 grep -qxF "$4" "$STUB_REGISTRY"
 STUB
 chmod +x "$tmp/docker"
-# The gitlinks are made-up commit ids: the submodule's objects are never in the
-# superrepo's store, which is what the script has to cope with.
-(cd "$repo" && git init -q && git add -A && git update-index --add --cacheinfo "160000,${PIN},tool-sprite" \
-	&& git update-index --add --cacheinfo "160000,${PAINT_PIN},tool-paint" \
-	&& git update-index --add --cacheinfo "160000,${PARTICLE_PIN},tool-particle" \
-	&& git update-index --add --cacheinfo "160000,${VOXEL_PIN},tool-voxel" \
-	&& git update-index --add --cacheinfo "160000,${MC_PIN},tool-mc" \
-	&& git update-index --add --cacheinfo "160000,${SN_PIN},tool-sn" \
-	&& git update-index --add --cacheinfo "160000,${DC_PIN},tool-dc" \
-	&& git update-index --add --cacheinfo "160000,${SYNTH_PIN},tool-sfx-synth" \
-	&& git update-index --add --cacheinfo "160000,${SAMPLE_PIN},tool-sfx-sample" \
-	&& git update-index --add --cacheinfo "160000,${MUSIC_PIN},tool-music" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m init)
+# The pin file as the repository writes it: a header, then one line per repository.
+write_pins() {
+	cat >"$repo/containers/tool-images.toml" <<PINS
+# The commit of each tool repository's image.
+
+tool-sprite = "${PIN}"
+tool-paint = "${PAINT_PIN}"
+tool-particle = "${PARTICLE_PIN}"
+tool-voxel = "${VOXEL_PIN}"
+tool-mc = "${MC_PIN}"
+tool-sn = "${SN_PIN}"
+tool-dc = "${DC_PIN}"
+tool-sfx-synth = "${SYNTH_PIN}"
+tool-sfx-sample = "${SAMPLE_PIN}"
+tool-music = "${MUSIC_PIN}"
+PINS
+}
+write_pins
+# A lock resolving tool-sprite's and tool-voxel's crates, as the driver's does.
+write_lock() { # <sprite commit> <voxel commit>
+	cat >"$repo/Cargo.lock" <<LOCK
+[[package]]
+name = "test-cabinet-draw"
+version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-sprite?branch=master#$1"
+
+[[package]]
+name = "test-cabinet-voxel"
+version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-voxel?branch=master#$2"
+
+[[package]]
+name = "test-cabinet-voxel-mesh"
+version = "0.1.1"
+source = "git+https://github.com/TheClockwyrks/tool-model-core?tag=v0.1.1#ffffffffffffffffffffffffffffffffffffffff"
+LOCK
+}
+write_lock "$PIN" "$VOXEL_PIN"
 
 run() {
 	: >"$tmp/log"
@@ -108,7 +134,7 @@ run() {
 		"$repo/scripts/ci/tool-images.sh" "$@" 2>&1)
 }
 
-check_equal "list names every tool repository at its gitlink, by its build argument" \
+check_equal "list names every tool repository at its pin, by its build argument" \
 	"tool-sprite TOOL_SPRITE_IMAGE ${REF}
 tool-paint TOOL_PAINT_IMAGE ${PAINT_REF}
 tool-particle TOOL_PARTICLE_IMAGE ${PARTICLE_REF}
@@ -175,7 +201,7 @@ buildx imagetools inspect ${MUSIC_REF}" "$(cat "$tmp/log")"
 out="$(run check)"
 check_equal "check fails when the registry lacks them" "1" "$?"
 check_contains "naming the reference" "${REF} is not in the registry" "$out"
-check_contains "and the commit the superrepo pins" "pins tool-sprite at ${PIN}" "$out"
+check_contains "and the commit the pin file pins" "pins tool-sprite at ${PIN}" "$out"
 check_contains "for each of them" "pins tool-paint at ${PAINT_PIN}" "$out"
 check_contains "tool-particle too" "pins tool-particle at ${PARTICLE_PIN}" "$out"
 check_contains "the model tool repositories included" "pins tool-sn at ${SN_PIN}" "$out"
@@ -201,7 +227,7 @@ printf '%s\n' "$REF" "$PAINT_REF" "$PARTICLE_REF" "$VOXEL_REF" "$MC_REF" "$SN_RE
 out="$(run check)"
 check_equal "check fails when the registry lacks a model tool image" "1" "$?"
 check_contains "naming it" "${DC_REF} is not in the registry" "$out"
-check_contains "and the commit the superrepo pins it at" "pins tool-dc at ${DC_PIN}" "$out"
+check_contains "and the commit the pin file pins it at" "pins tool-dc at ${DC_PIN}" "$out"
 check_lacks "and not the others" "${MC_REF} is not in the registry" "$out"
 
 printf '%s\n' "$REF" "$PAINT_REF" "$PARTICLE_REF" "$VOXEL_REF" "$MC_REF" "$SN_REF" "$DC_REF" "$SYNTH_REF" \
@@ -209,7 +235,7 @@ printf '%s\n' "$REF" "$PAINT_REF" "$PARTICLE_REF" "$VOXEL_REF" "$MC_REF" "$SN_RE
 out="$(run check)"
 check_equal "check fails when the registry lacks an audio tool image" "1" "$?"
 check_contains "naming it" "${MUSIC_REF} is not in the registry" "$out"
-check_contains "and the commit the superrepo pins it at" "pins tool-music at ${MUSIC_PIN}" "$out"
+check_contains "and the commit the pin file pins it at" "pins tool-music at ${MUSIC_PIN}" "$out"
 check_lacks "and not the others" "${SYNTH_REF} is not in the registry" "$out"
 
 printf '%s\n' "$PAINT_REF" "$PARTICLE_REF" "$VOXEL_REF" "$MC_REF" "$SN_REF" "$DC_REF" \
@@ -218,14 +244,70 @@ out="$(TOOL_SPRITE_IMAGE=registry.test/tool-sprite:dev run check)"
 check_equal "an override the registry lacks fails too" "1" "$?"
 check_contains "naming the variable" "TOOL_SPRITE_IMAGE names it" "$out"
 
-(cd "$repo" && git rm -q --cached tool-sprite && git -c user.name=t -c user.email=t@t commit -q -m drop)
+echo "--- the pin file ---"
+sed -i '/^tool-sprite = /d' "$repo/containers/tool-images.toml"
+check_equal "a repository left out of the file is left out of the list" \
+	"tool-paint TOOL_PAINT_IMAGE ${PAINT_REF}" "$(run list | head -n 1)"
+write_pins
+printf 'tool-sprite = "%s"\n' "$PIN" >>"$repo/containers/tool-images.toml"
 out="$(run list)"
-check_equal "a HEAD without the submodule fails" "1" "$?"
-check_contains "saying how to register it" "HEAD has no submodule at tool-sprite" "$out"
+check_equal "a repository pinned twice fails" "1" "$?"
+check_contains "naming the line" "tool-images.toml:13 pins tool-sprite a second time" "$out"
+write_pins
+printf 'tool-sprite = "1da52d0"\n' >>"$repo/containers/tool-images.toml"
+out="$(run list)"
+check_equal "a short commit fails" "1" "$?"
+check_contains "naming the line and the shape" "tool-images.toml:13 is not \`tool-<name> = \"<full commit>\"\`" "$out"
+write_pins
+printf 'sprite = "%s"\n' "$PIN" >>"$repo/containers/tool-images.toml"
+out="$(run list)"
+check_equal "a repository that is not a tool repository fails" "1" "$?"
+write_pins
+printf '# nothing pinned\n' >"$repo/containers/tool-images.toml"
+out="$(run list)"
+check_equal "a file pinning nothing fails" "1" "$?"
+check_contains "saying so" "pins no repository" "$out"
+rm "$repo/containers/tool-images.toml"
+out="$(run check)"
+check_equal "a missing file fails check" "1" "$?"
+check_contains "saying what it is" "containers/tool-images.toml is missing" "$out"
+check_equal "before asking the registry anything" "" "$(cat "$tmp/log")"
+write_pins
+
+echo "--- lock ---"
+out="$(run lock)"
+check_equal "pins equal to the lock's commits pass" "0" "$?"
+check_contains "naming each repository the lock resolves" "tool-sprite: ${PIN} (as Cargo.lock resolves it)" "$out"
+check_contains "tool-voxel too" "tool-voxel: ${VOXEL_PIN}" "$out"
+check_contains "and how many it compared" "2 pin(s) agree with Cargo.lock" "$out"
+check_lacks "a repository the lock does not name is not compared" "tool-paint:" "$out"
+check_lacks "and a lock source no pin names is not either" "tool-model-core" "$out"
+write_lock "$PAINT_PIN" "$VOXEL_PIN"
+out="$(run lock)"
+check_equal "a pin the lock resolves elsewhere fails" "1" "$?"
+check_contains "naming the pin" "pins tool-sprite at ${PIN}" "$out"
+check_contains "and the lock's commit" "resolves its crates at ${PAINT_PIN}" "$out"
+check_contains "and still checking the others" "tool-voxel: ${VOXEL_PIN}" "$out"
+write_lock "$PIN" "$VOXEL_PIN"
+printf '\n[[package]]\nname = "test-cabinet-draw-sheet"\nversion = "0.0.0"\nsource = "git+https://github.com/TheClockwyrks/tool-sprite?branch=master#%s"\n' \
+	"$PAINT_PIN" >>"$repo/Cargo.lock"
+out="$(run lock)"
+check_equal "a lock resolving one repository at two commits fails" "1" "$?"
+check_contains "saying so" "resolves tool-sprite to more than one commit" "$out"
+rm "$repo/Cargo.lock"
+out="$(run lock)"
+check_equal "a missing lock fails" "1" "$?"
+write_lock "$PIN" "$VOXEL_PIN"
+
+echo "--- this repository's own pins ---"
+out="$(cd "$CI_DIR/../.." && scripts/ci/tool-images.sh lock 2>&1)"
+check_equal "agree with its Cargo.lock" "0" "$?"
+check_contains "tool-sprite's, which the driver links draw from" "tool-sprite: " "$out"
+check_contains "and tool-voxel's, which it links voxel from" "tool-voxel: " "$out"
 
 out="$(run)"
 check_equal "no subcommand is a usage error" "2" "$?"
-check_contains "which says how to call it" "usage: scripts/ci/tool-images.sh list | check" "$out"
+check_contains "which says how to call it" "usage: scripts/ci/tool-images.sh list | check | lock" "$out"
 out="$(run fetch)"
 check_equal "and so is an unknown one" "2" "$?"
 

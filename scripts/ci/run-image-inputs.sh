@@ -20,8 +20,6 @@
 #     it. A Dockerfile that copies `.` reads the whole build context, which is the
 #     repository root filtered by the root .dockerignore, so its inputs are that file
 #     and every tracked file under each path the allowlist re-includes (its `!` lines).
-#     A path under a submodule lists the submodule's gitlink, its pinned commit, since
-#     the index holds none of the submodule's files.
 #     A superset of what the build reads is fine: it can only rebuild too often, never
 #     too seldom.
 #   - the digests of the images it is built from (its `FROM` parents and the builder
@@ -33,11 +31,18 @@
 #     tag names the tree, and a bump of the pin rebuilds every variant.
 #   - for every image whose Dockerfile declares a tool image's build argument
 #     (`ARG TOOL_SPRITE_IMAGE`), that image's reference as scripts/ci/tool-images.sh lists
-#     it: `testcabinet.azurecr.io/<repository>:<commit>` at the superrepo's gitlink, or
-#     the environment variable named for the argument, as containers/build.sh takes it.
-#     A `tool-*` repository's pipeline publishes a commit's image once, so the tag names
-#     the binaries, and a bump of the gitlink rebuilds every image that copies from it
-#     (and, through the parent digests, everything built from those).
+#     it: `testcabinet.azurecr.io/<repository>:<commit>` at the commit
+#     containers/tool-images.toml pins, or the environment variable named for the
+#     argument, as containers/build.sh takes it. A `tool-*` repository's pipeline
+#     publishes a commit's image once, so the tag names the binaries, and a bump of the
+#     pin rebuilds every image that copies from it (and, through the parent digests,
+#     everything built from those).
+#   - for every image whose Dockerfile declares `ARG LATTICE_TRAINING_DIR` (the
+#     performance image), the digest of the Lattice training scenarios it bakes, which
+#     containers/build.sh stages into the context from a test-suites checkout:
+#     scripts/ci/lattice-training.sh digest, or LATTICE_TRAINING_DIGEST when it is set.
+#     The COPY of the staged directory names it by that argument, so the listing above
+#     leaves it out, and the scenarios are no file of this repository's index.
 #
 # scripts/ci/run-images.sh writes this table and containers/build.sh reads it in its
 # reuse mode: an image whose digest already names a pushed image in the registry is
@@ -115,26 +120,9 @@ allowlisted_paths() {
 	grep -E '^!' .dockerignore | sed -E 's/^!\/?//; s/\/$//' | sort -u
 }
 
-# The index's gitlinks, the paths of its submodules, which main reads once: the
-# digests are computed in subshells, which would each read it again.
-GITLINKS=()
-
-# `git ls-files -s` over paths, which is empty for a path with no tracked file. A
-# path inside a submodule has no tracked file in this index, only the submodule's
-# gitlink, so the gitlink is listed for it too: a bump of the submodule's pin moves
-# the digest of every image that reads under it.
+# `git ls-files -s` over paths, which is empty for a path with no tracked file.
 listing() {
-	local -a specs=("$@")
-	local path gitlink
-	for gitlink in "${GITLINKS[@]}"; do
-		for path in "$@"; do
-			if [[ "$path" == "$gitlink" || "$path" == "$gitlink"/* ]]; then
-				specs+=("$gitlink")
-				break
-			fi
-		done
-	done
-	git ls-files -s -- "${specs[@]}"
+	git ls-files -s -- "$@"
 }
 
 declare -A DIGESTS=()
@@ -145,7 +133,7 @@ digest_of() {
 		echo "${DIGESTS[$name]}"
 		return 0
 	fi
-	local dockerfile parents parent source arg parts=""
+	local dockerfile parents parent source arg training parts=""
 	dockerfile="$(dockerfile_of "$name")"
 	if [[ ! -f "$dockerfile" ]]; then
 		echo "run-image-inputs.sh: no Dockerfile for '${name}' at ${dockerfile}" >&2
@@ -166,6 +154,10 @@ digest_of() {
 	if [[ "$name" == *-gg ]]; then
 		parts+="gg-toolchains ${GG_TOOLCHAINS_REF}"$'\n'
 	fi
+	if grep -qE '^ARG LATTICE_TRAINING_DIR(=|$)' "$dockerfile"; then
+		training="$(lattice_training_digest)" || return 1
+		parts+="lattice-training ${training}"$'\n'
+	fi
 	while IFS= read -r arg; do
 		[[ -n "$arg" ]] || continue
 		if [[ -z "${TOOL_IMAGE_REFS[$arg]:-}" ]]; then
@@ -182,6 +174,22 @@ digest_of() {
 	fi
 	DIGESTS[$name]="$(printf '%s' "$parts" | sha256sum | cut -c 1-32)"
 	echo "${DIGESTS[$name]}"
+}
+
+# The Lattice training scenarios' digest, computed on first use: finding them may clone
+# test-suites, which only the performance image needs. Kept in a file, because the
+# digests are computed in subshells, which would each compute it again.
+TRAINING_DIGEST_FILE="$(mktemp)"
+trap 'rm -f "$TRAINING_DIGEST_FILE"' EXIT
+lattice_training_digest() {
+	if [[ -n "${LATTICE_TRAINING_DIGEST:-}" ]]; then
+		echo "$LATTICE_TRAINING_DIGEST"
+		return 0
+	fi
+	if [[ ! -s "$TRAINING_DIGEST_FILE" ]]; then
+		scripts/ci/lattice-training.sh digest >"$TRAINING_DIGEST_FILE" || return 1
+	fi
+	cat "$TRAINING_DIGEST_FILE"
 }
 
 # The gg toolchain image the `-gg` variants copy, read once.
@@ -202,7 +210,6 @@ unset tool_images_table tool_arg tool_ref
 
 main() {
 	local -a names=()
-	mapfile -t GITLINKS < <(git ls-files -s | awk -F '\t' '$1 ~ /^160000 / { print $2 }')
 	if [[ $# -gt 0 ]]; then
 		names=("$@")
 	else

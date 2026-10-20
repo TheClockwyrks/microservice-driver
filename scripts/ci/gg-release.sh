@@ -9,8 +9,8 @@
 # gg is built, tested and released by the `gg` repository, whose pipeline uploads three
 # objects on each `v*` tag to the anonymously readable `gg-releases` blob container and
 # pushes the toolchain tree the `-gg` run images copy as the multi-arch image
-# `test-cabinet-gg-toolchains:<version>` (see "Releasing gg" in
-# apps/docs/src/content/docs/development/releasing.md):
+# `test-cabinet-gg-toolchains:<version>` (see "Releasing gg" at
+# https://docs.testcabinet.ai/development/releasing/):
 #
 #   v<version>/gg-x86_64-unknown-linux-musl     the static gg for x86_64
 #   v<version>/gg-aarch64-unknown-linux-musl    the static gg for aarch64
@@ -20,11 +20,10 @@
 # THE PIN is the one line of crates/driver/gg-release-version, which the driver compiles
 # in as `DEFAULT_RELEASE_VERSION` (crates/driver/src/gg_exec.rs). This script is how every
 # image build and script reads it, so a bump is an edit of that file alone:
-# deployments/images/services.Dockerfile runs `fetch` for the driver (the binary) and the
-# backend (the reference documents), containers/build.sh copies the `toolchains-image`
-# into every `-gg` variant, and scripts/ci/run-images.sh and
-# `make -C deployments/local run-images-gg-selfcheck` drive `gg selfcheck` with the
-# fetched binary.
+# the root Dockerfile's `gg-release` stage runs `fetch` for the driver image (the binary),
+# containers/build.sh copies the `toolchains-image` into every `-gg` variant, and
+# scripts/ci/run-images.sh drives `gg selfcheck` with the fetched binary. The backend
+# fetches the reference documents of its own pin (its scripts/ci/gg-reference.sh).
 #
 # TCAB_GG_RELEASE_VERSION and TCAB_GG_RELEASE_URL override the version and the base URL,
 # under the names the driver reads them by, which is how a prerelease such as

@@ -15,7 +15,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:md": "markdownlint-cli2",
-    "spell": "cspell lint --no-progress --cache"
+    "spell": "cspell lint --no-progress --cache",
+    "test:scripts": "node --test scripts/*.test.mjs scripts/lib/*.test.mjs"
+  },
+  "dependencies": {
+    "@clockwyrks/case-harness": "1.1.2",
+    "@clockwyrks/particle-runtime": "1.1.2",
+    "@clockwyrks/simple-2d": "1.1.2",
+    "@clockwyrks/simple-3d": "1.1.2",
+    "@clockwyrks/structured-2d": "1.1.2",
+    "@clockwyrks/structured-3d": "1.1.2",
+    "@clockwyrks/voxel-runtime": "1.1.2"
   },
   "devDependencies": {
     "@vitest/browser-playwright": "5.0.0",

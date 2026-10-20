@@ -40,16 +40,16 @@
 #     `full-stack-*/Dockerfile` is `FROM` base-wasm here); and
 #   - the adversarial image, which every adversarial run executes in — base-wasm
 #     (which supplies the Rust + `wasm32-unknown-unknown` toolchain a model's
-#     controller builds to wasm with) plus the Foray tooling compiled from
-#     `crates/`: the baked-in `foray` CLI, the controller buildkit, and the
-#     reference modules + map (`adversarial/Dockerfile` is `FROM` base-wasm here);
-#     and
+#     controller builds to wasm with) plus the Foray tooling compiled from the
+#     engines repository at the commit Cargo.lock resolves: the baked-in `foray`
+#     CLI, the controller buildkit, and the reference modules + map
+#     (`adversarial/Dockerfile` is `FROM` base-wasm here); and
 #   - the performance image, which every performance run executes in — base-wasm
 #     (which supplies the Rust + `wasm32-unknown-unknown` toolchain a model's engine
-#     builds to wasm with) plus the Lattice tooling compiled from `crates/`: the
-#     baked-in `lattice` CLI, the engine buildkit, the reference engines, and the
-#     committed training scenarios (`performance/Dockerfile` is `FROM` base-wasm here);
-#     and
+#     builds to wasm with) plus the Lattice tooling compiled from the engines
+#     repository at the commit Cargo.lock resolves: the baked-in `lattice` CLI and
+#     the engine buildkit, and the case's training scenarios from test-suites
+#     (`performance/Dockerfile` is `FROM` base-wasm here); and
 #   - one `<name>-gg` VARIANT per run image `gg` is pointed at — that image plus the
 #     language toolchains a gg run's responses-as-code programs are compiled with
 #     (`gg/Dockerfile`, `FROM` its parent, copying the toolchain tree out of the
@@ -71,9 +71,9 @@
 #                             #   no base is present, and when the base that IS present is older
 #                             #   than containers/base/Dockerfile — being present is not the same as
 #                             #   being current, and a stale parent is inherited in silence. The
-#                             #   rebuild cascades down the layers. This is how
-#                             #   deployments/local/Makefile rebuilds one test type — or one
-#                             #   asset-generation kind — without paying for the whole set.
+#                             #   rebuild cascades down the layers. This is how the
+#                             #   superrepo's deployments/local/Makefile rebuilds one test type —
+#                             #   or one asset-generation kind — without paying for the whole set.
 #   ./build.sh audio-store    # build the data-only AUDIO STORE image: every published audio
 #                             #   pack, which a run's declared packs are staged out of. Not a run
 #                             #   image, so it is absent from image-names.sh and a plain
@@ -96,7 +96,8 @@
 # TCAB_CONTAINER_IMAGE_MC_ANIMATION / TCAB_CONTAINER_IMAGE_SN /
 # TCAB_CONTAINER_IMAGE_SN_ANIMATION / TCAB_CONTAINER_IMAGE_DC /
 # TCAB_CONTAINER_IMAGE_DC_ANIMATION / TCAB_CONTAINER_IMAGE_ADVERSARIAL /
-# TCAB_CONTAINER_IMAGE_PERFORMANCE; see docs/components/core/execution.md). The
+# TCAB_CONTAINER_IMAGE_PERFORMANCE; see
+# https://docs.testcabinet.ai/components/driver/execution/). The
 # backend plays no part in container distribution, so this script never talks to it.
 #
 # With PUSH=1 the script pushes each built image to IMAGE_REGISTRY and prints its
@@ -432,10 +433,10 @@ readonly GG_TOOLCHAINS_IMAGE
 # A run container is given the packs its test case declares in `[audio] packs`, staged out
 # of this store when the container starts (`crates/driver/src/audio_stage.rs`). Publishing
 # the store as its own image is what keeps the R2 presign credentials to ONE build: the
-# driver image build takes the published image (the pipeline passes the one it pushed at
-# the same commit), `make -C deployments/local images` builds its own, and a contributor's
-# `./build.sh` skips it, so a clean clone with no credential can build every run image.
-# See containers/audio-store/Dockerfile.
+# driver image build takes the published image (by default the one the pipeline pushed
+# at the same commit), the superrepo's `make -C deployments/local images` builds its
+# own, and a contributor's `./build.sh` skips it, so a clean clone with no credential
+# can build every run image. See containers/audio-store/Dockerfile.
 readonly AUDIO_STORE_IMAGE="${IMAGE_NAME_PREFIX}audio-store:${IMAGE_TAG}"
 
 # ---------------------------------------------------------------------------
@@ -448,8 +449,8 @@ readonly AUDIO_STORE_IMAGE="${IMAGE_NAME_PREFIX}audio-store:${IMAGE_TAG}"
 # `tool-sfx-synth`: `sfx-synth`; `tool-sfx-sample`: `sfx-sample`; `tool-music`: `music`),
 # and nothing here compiles it. Its repository's pipeline publishes the image
 # `testcabinet.azurecr.io/<repository>:<commit>` on every gated push to master and staging,
-# and a run image copies the binaries out of it at the commit the driver pins, which,
-# while the driver lives in the superrepo, is the superrepo's gitlink for the repository.
+# and a run image copies the binaries out of it at the commit the driver pins, which is
+# the repository's line in containers/tool-images.toml.
 # A run image's Dockerfile says which it copies from by declaring the global build
 # argument (`ARG TOOL_SPRITE_IMAGE`) and naming a stage `FROM` it.
 #
@@ -460,19 +461,25 @@ readonly AUDIO_STORE_IMAGE="${IMAGE_NAME_PREFIX}audio-store:${IMAGE_TAG}"
 #   - under PUSH, the pinned reference, pulled once before the first image that copies
 #     from it: a published run image carries the published tool, never a local build of
 #     it. scripts/ci/run-images.sh checks every reference is in the registry first.
-#   - without PUSH (the local path, deployments/local/Makefile's), the image built from
-#     the repository's checkout, `${IMAGE_NAME_PREFIX}<repository>:${IMAGE_TAG}`, rebuilt
-#     once per invocation before the first image that copies from it rather than reused
-#     when present: it carries the binaries, and a stale one would bake yesterday's
-#     `draw` into today's run image. The repository's own Dockerfile and
-#     build context are used, as its pipeline uses them, and its cargo cache mounts make a
-#     no-change rebuild cheap.
+#   - without PUSH (the local path, the superrepo's deployments/local/Makefile's), the
+#     image built from the repository's checkout when there is one,
+#     `${IMAGE_NAME_PREFIX}<repository>:${IMAGE_TAG}`, rebuilt once per invocation before
+#     the first image that copies from it rather than reused when present: it carries the
+#     binaries, and a stale one would bake yesterday's `draw` into today's run image. The
+#     repository's own Dockerfile and build context are used, as its pipeline uses them,
+#     and its cargo cache mounts make a no-change rebuild cheap. A checkout is looked for
+#     beside this repository's, under TOOL_CHECKOUTS (default: the directory this
+#     repository is checked out in, which in the superrepo holds every `tool-*`
+#     submodule). With none there, the pinned reference is pulled, as under PUSH.
 #   - an environment variable named for the argument wins in both modes, and is pulled
 #     like the pinned reference when it is not in the local store.
 #
 # Naming a repository (`./build.sh tool-sprite`) builds or pulls just its image. A tool
 # image is not a RUN image, so it is absent from image-names.sh.
 tool_images_table="$("${SCRIPT_DIR}/../scripts/ci/tool-images.sh" list)"
+# Where a tool repository's checkout is looked for without PUSH: beside this repository.
+TOOL_CHECKOUTS="${TOOL_CHECKOUTS:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+readonly TOOL_CHECKOUTS
 declare -a TOOL_REPOSITORIES=()
 declare -A TOOL_IMAGE_REF=()
 declare -A TOOL_IMAGE_REPOSITORY=()
@@ -482,9 +489,9 @@ while read -r tool_repository tool_arg tool_ref; do
 	[[ -n "${tool_repository}" ]] || continue
 	TOOL_REPOSITORIES+=("${tool_repository}")
 	TOOL_IMAGE_REPOSITORY["${tool_arg}"]="${tool_repository}"
-	if [[ -z "${PUSH}" && -z "${!tool_arg:-}" ]]; then
+	if [[ -z "${PUSH}" && -z "${!tool_arg:-}" && -f "${TOOL_CHECKOUTS}/${tool_repository}/Dockerfile" ]]; then
 		TOOL_IMAGE_REF["${tool_arg}"]="${IMAGE_NAME_PREFIX}${tool_repository}:${IMAGE_TAG}"
-		TOOL_IMAGE_FROM_CHECKOUT["${tool_arg}"]=1
+		TOOL_IMAGE_FROM_CHECKOUT["${tool_arg}"]="${TOOL_CHECKOUTS}/${tool_repository}"
 	else
 		TOOL_IMAGE_REF["${tool_arg}"]="${tool_ref}"
 	fi
@@ -831,8 +838,8 @@ reclaim_image() {
 # WHAT THE PRUNE COSTS, stated because it is not nothing and because it does not stop at this
 # build. `--all` takes every `--mount=type=cache` record in the builder, not just this
 # build's, and on a dev box the default builder is the one embedded BuildKit instance the
-# whole daemon shares — so it would also take `deployments/images/services.Dockerfile`'s
-# cargo registry, rustup and target/ mounts, and every other project's build cache on that
+# whole daemon shares — so it would also take the root Dockerfile's cargo registry and
+# target/ mounts, and every other project's build cache on that
 # daemon. THAT IS WHY THE RECLAIM IS GATED ON `RECLAIM=1` RATHER
 # THAN ON `PUSH`: a developer's documented `PUSH=1 IMAGE_REGISTRY=…` publish must not pay it.
 #
@@ -856,8 +863,8 @@ reclaim_builder_cache() {
 # the only place it exists, and RECLAIM, because the removal and the prune reach past this
 # build and only CI wants them (see `reclaim_builder_cache`). Without them it does nothing at
 # all — which is the local path, where the images ARE the product
-# (`deployments/local/Makefile` builds with no PUSH and then `docker save`s the set for
-# `k3d image import`).
+# (the superrepo's `deployments/local/Makefile` builds with no PUSH and then `docker save`s
+# the set for `k3d image import`).
 reclaim_after_push() {
 	local name="$1" parent
 	[[ -n "${PUSH}" && -n "${RECLAIM}" ]] || return 0
@@ -895,14 +902,7 @@ ensure_tool_image() {
 	repository="${TOOL_IMAGE_REPOSITORY[$arg]}"
 	ref="${TOOL_IMAGE_REF[$arg]}"
 	if [[ -n "${TOOL_IMAGE_FROM_CHECKOUT[$arg]:-}" ]]; then
-		dir="${SCRIPT_DIR}/../${repository}"
-		if [[ ! -f "${dir}/Dockerfile" ]]; then
-			echo "ERROR: ${repository}/Dockerfile is missing: the run images copy ${repository}'s binaries out of its image," >&2
-			echo "       which a local build makes from the checkout. Check it out with:" >&2
-			echo "           git submodule update --init ${repository}" >&2
-			echo "       or name a published image with ${arg}=testcabinet.azurecr.io/${repository}:<commit>." >&2
-			exit 1
-		fi
+		dir="${TOOL_IMAGE_FROM_CHECKOUT[$arg]}"
 		echo "==> building ${ref} from the ${repository} checkout (its binaries are copied into the run images; not pushed)"
 		"$DOCKER" build -t "${ref}" -f "${dir}/Dockerfile" "${dir}"
 	elif ! image_present "${ref}"; then
@@ -1251,9 +1251,10 @@ trap gg_selfcheck_cleanup EXIT
 #      DAEMON, and this repository's own devcontainer talks to the host's daemon
 #      (Docker-outside-of-Docker), where an in-container path names nothing: the mount
 #      silently becomes an empty directory and the gate dies with `permission denied` for
-#      a reason that has nothing to do with any arm. `deployments/local/Makefile` carries
-#      the same problem for k3d and solves it by translating to the host path; a `cp` needs
-#      no translation, so the local target and CI run the identical command.
+#      a reason that has nothing to do with any arm. The superrepo's
+#      deployments/local/Makefile carries the same problem for k3d and solves it by
+#      translating to the host path; a `cp` needs no translation, so the local target and
+#      CI run the identical command.
 gg_selfcheck() {
 	local name="$1" image="$2"
 	echo "==> gg selfcheck: driving every language arm inside ${image} as ${GG_SELFCHECK_USER}" >&2
@@ -1459,10 +1460,9 @@ build_adversarial() {
 	# Built `FROM` the base-wasm image built above (passed as the BASE_IMAGE build
 	# arg, the local tag) — which already carries the Rust + `wasm32-unknown-unknown`
 	# toolchain a model's controller compiles to wasm with — plus the Foray tooling
-	# the image's first stage compiles from `crates/`: the `foray` CLI, the controller
-	# buildkit (`foray-core` + `foray-controller-sdk`), and the reference wasm modules
-	# + map. Like the asset-generation images it therefore needs the repository root as
-	# its build context (a repo-root `.dockerignore` keeps it lean). Building from the
+	# the image's first stage compiles from the engines repository at the commit
+	# Cargo.lock resolves: the `foray` CLI, the controller buildkit (`foray-core` +
+	# `foray-controller-sdk`), and the reference wasm modules + map. Building from the
 	# local base-wasm tag avoids a registry round-trip and keeps the adversarial image
 	# pinned to the base-wasm produced in this same invocation.
 	"$DOCKER" build \
@@ -1493,21 +1493,28 @@ build_blender() {
 	fi
 }
 
+# The path, within the build context, that the performance image's training scenarios
+# are staged to. They belong to the test-suites repository, so scripts/ci/lattice-training.sh
+# copies them in from a checkout of it before the build, and the root .dockerignore
+# re-includes exactly this directory.
+readonly LATTICE_TRAINING_DIR="dist/lattice-training"
+
 build_performance() {
 	echo "==> building ${PERFORMANCE_IMAGE} (FROM ${BASE_WASM_IMAGE})"
 	# Built `FROM` the base-wasm image built above (passed as the BASE_IMAGE build
 	# arg, the local tag) — which already carries the Rust + `wasm32-unknown-unknown`
 	# toolchain a model's engine compiles to wasm with — plus the Lattice tooling the
-	# image's first stage compiles from `crates/`: the `lattice` CLI, the engine
-	# buildkit (`lattice-core` + `lattice-sdk`), and the reference engine wasm modules.
-	# It also bakes the committed training scenarios from the case's version folder
-	# under the test-suites submodule's `test-cases/`. Like the adversarial image it
-	# therefore needs the repository root as its build context (a repo-root
-	# `.dockerignore` keeps it lean). Building
-	# from the local base-wasm tag avoids a registry round-trip and keeps the
-	# performance image pinned to the base-wasm produced in this same invocation.
+	# image's first stage compiles from the engines repository at the commit Cargo.lock
+	# resolves: the `lattice` CLI and the engine buildkit (`lattice-core` +
+	# `lattice-sdk`). It also bakes the committed training scenarios of the case's
+	# version folder in test-suites, staged into the build context here
+	# (scripts/ci/lattice-training.sh says where they are found). Building from the local
+	# base-wasm tag avoids a registry round-trip and keeps the performance image pinned to
+	# the base-wasm produced in this same invocation.
+	"${SCRIPT_DIR}/../scripts/ci/lattice-training.sh" stage "${SCRIPT_DIR}/../${LATTICE_TRAINING_DIR}"
 	"$DOCKER" build \
 		--build-arg "BASE_IMAGE=${BASE_WASM_IMAGE}" \
+		--build-arg "LATTICE_TRAINING_DIR=${LATTICE_TRAINING_DIR}" \
 		-t "${PERFORMANCE_IMAGE}" \
 		-f "${SCRIPT_DIR}/performance/Dockerfile" "${SCRIPT_DIR}/.."
 

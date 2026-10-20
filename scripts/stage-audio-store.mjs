@@ -31,6 +31,11 @@
 // into a container against it: a store is then verifiable wherever it was fetched from,
 // not only on a machine holding this repository.
 //
+// The packs are microservice-backend's `containers/sample-packs/`, read through that
+// repository's clip store module (`scripts/lib/audio-store.mjs`), which
+// scripts/lib/siblings.mjs finds: TCAB_BACKEND_DIR, the checkout beside this one, or a
+// sparse clone of its mirror.
+//
 // Every object is resolved through `containers/sample-packs/objects.lock.json`, fetched
 // with a short-lived presigned GET, and verified against the recorded digest and size
 // before it lands. A missing lock entry, a failed download, or a digest mismatch is a
@@ -55,8 +60,8 @@
 // than inside it, because the tree is what an image build copies.
 //
 // Reads the read-scoped PRESIGN credentials from the environment (repo-root `.env`
-// locally, GitHub secrets in CI); no credential enters an image layer, because the
-// signature travels in the URL and the download happens here.
+// locally, secret pipeline variables in CI); no credential enters an image layer,
+// because the signature travels in the URL and the download happens here.
 
 import { createHash } from "node:crypto";
 import {
@@ -72,19 +77,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stringify as stringifyToml } from "smol-toml";
 
-import {
-  OBJECTS_LOCK_PATH,
-  PACKS_DIR,
-  packManifest,
-  packPath,
-  readClips,
-  readObjectsLock,
-  readPack,
-  resolveEntry,
-  wavDurationMs,
-} from "./lib/audio-store.mjs";
 import { loadDotEnv } from "./lib/env.mjs";
 import { presignGetUrl, r2ConfigFromEnv } from "./lib/r2.mjs";
+import { loadAudioStore } from "./lib/siblings.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_OUT = join(repoRoot, "dist", "audio-store");
@@ -99,7 +94,8 @@ Usage:
   node scripts/stage-audio-store.mjs --help
 
 Downloads each pack's normalized objects from the audio object store through a
-presigned GET, verifies every one against containers/sample-packs/objects.lock.json,
+presigned GET, verifies every one against the backend's
+containers/sample-packs/objects.lock.json,
 and writes <out>/tree/clips/<clip-id>.<profile-id>.wav,
 <out>/tree/packs/<name>@<version>/pack.toml and a copy of the object lock.`;
 
@@ -118,6 +114,26 @@ function fail(msg) {
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
+
+// The sample packs and the clip store module that reads them are microservice-backend's,
+// found wherever scripts/lib/siblings.mjs finds that repository.
+let audioStore;
+try {
+  audioStore = await loadAudioStore();
+} catch (err) {
+  fail(err?.message ?? String(err));
+}
+const {
+  OBJECTS_LOCK_PATH,
+  PACKS_DIR,
+  packManifest,
+  packPath,
+  readClips,
+  readObjectsLock,
+  readPack,
+  resolveEntry,
+  wavDurationMs,
+} = audioStore;
 
 /** Parse the command line into `{ refs, out, expiresIn }`. */
 function parseArgs(argv) {

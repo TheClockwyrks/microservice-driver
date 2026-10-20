@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Table test for scripts/ci/provision-node.sh. The script runs in a fixture tree holding
-# its two libraries and the compose file the Node pin is read from, with `curl` and
-# `uname` stubbed on PATH, so nothing is downloaded and nothing outside the temporary
-# directory is touched.
+# its library, with NODE_VERSION in its environment and `curl` and `uname` stubbed on
+# PATH, so nothing is downloaded and nothing outside the temporary directory is touched.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -57,16 +56,10 @@ echo "${STUB_UNAME_M:-x86_64}"
 STUB
 chmod +x "$work/bin/curl" "$work/bin/uname"
 
-fixture() { # name [NODE_VERSION line]
+fixture() { # name
 	local dir="$work/$1"
-	mkdir -p "$dir/scripts/ci" "$dir/.devcontainer"
-	cp "$here/provision-node.sh" "$here/lib.sh" "$here/tcab-lib.sh" "$dir/scripts/ci/"
-	{
-		echo "x-devcontainer-build-args: &devcontainer-build-args"
-		[[ $# -lt 2 ]] || echo "  $2"
-		echo "  RUST_VERSION: 1.97.1"
-		echo "services: {}"
-	} >"$dir/.devcontainer/docker-compose.yml"
+	mkdir -p "$dir/scripts/ci"
+	cp "$here/provision-node.sh" "$here/tcab-lib.sh" "$dir/scripts/ci/"
 	echo "$dir"
 }
 
@@ -75,10 +68,11 @@ run() { # dir args... ; sets out and status
 	shift
 	rm -f "$work/curl.log"
 	status=0
-	out="$(PATH="$work/bin:$PATH" "$dir/scripts/ci/provision-node.sh" "$@" 2>&1)" || status=$?
+	out="$(PATH="$work/bin:$PATH" NODE_VERSION="${CASE_NODE_VERSION-$NODE}" "$dir/scripts/ci/provision-node.sh" "$@" 2>&1)" \
+		|| status=$?
 }
 
-dir="$(fixture pinned "NODE_VERSION: $NODE")"
+dir="$(fixture pinned)"
 run "$dir" "$work/cache"
 if [[ "$status" -eq 0 ]]; then
 	pass "an empty directory is provisioned"
@@ -127,12 +121,18 @@ else
 	fail "riscv64: $status: $out"
 fi
 
-dir="$(fixture unpinned)"
-run "$dir" "$work/unpinned"
-if [[ "$status" -ne 0 && ! -e "$work/curl.log" ]]; then
-	pass "a compose file without the pin fails before any download"
+CASE_NODE_VERSION="" run "$dir" "$work/unpinned"
+if [[ "$status" -ne 0 && ! -e "$work/curl.log" && "$out" == *"NODE_VERSION must name"* ]]; then
+	pass "no NODE_VERSION fails before any download, saying what it needs"
 else
 	fail "unpinned: $status: $out"
+fi
+
+CASE_NODE_VERSION="24" run "$dir" "$work/partial"
+if [[ "$status" -ne 0 && ! -e "$work/curl.log" ]]; then
+	pass "and so does a version that is not a full release"
+else
+	fail "partial: $status: $out"
 fi
 
 run "$dir"

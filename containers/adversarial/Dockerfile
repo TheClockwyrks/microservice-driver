@@ -22,10 +22,9 @@
 # them from source in-container) is the same lockstep argument as the
 # asset-generation `draw` binary: the `foray` CLI, the buildkit crates, and the
 # reference modules are part of The Test Cabinet itself and must match the engine
-# the validator scores against, so they are compiled from THIS repository at
-# image-build time and a run records the image digest. The build context is the
-# repository root so the compile stage can see the engines submodule's `crates/`
-# (see `containers/build.sh`).
+# the validator scores against, so they are compiled from the engines repository at
+# the commit this repository's Cargo.lock resolves, at image-build time, and a run
+# records the image digest (see `containers/build.sh`).
 #
 # This image inherits everything from base-wasm — the Node toolchain, the Rust +
 # `wasm32-unknown-unknown` toolchain, the unprivileged `node` run user, the `/work`
@@ -49,40 +48,28 @@ ARG BASE_IMAGE=test-cabinet-base-wasm:latest
 # copied into the final image. The glibc target matches the bookworm-based base.
 FROM docker.io/library/rust:1.97.1-bookworm AS foray-build
 WORKDIR /build
-# The whole context is copied (minus `.dockerignore`'d paths): the engines
-# repository's workspace, a submodule at `engines/`, whose crates this stage
-# compiles, and the superrepo's `.cargo/` patch table, which cargo reads from the
-# working directory and which sends the engines workspace's own dependency on the
-# contracts repository to the `contracts/` submodule beside it.
-COPY . .
-# The cargo registry/git caches are BuildKit cache mounts shared with every other
-# image in the repository (they take the default id, their target path), so the
-# crates.io index and the crate tarballs are fetched once rather than re-downloaded
-# per image. target/ gets its OWN id rather than sharing the asset tooling's: this
-# is a separate cargo invocation with a different package selection, and cargo
-# unifies features across whatever set is selected — two invocations sharing one
-# target dir would keep invalidating each other's fingerprints and rebuild on every
-# alternation. `sharing=locked` because cargo locks a whole target dir anyway.
-#
-# rustup's home is deliberately NOT mounted: `rustup target add` below must persist
-# into the image layer for the buildkit smoke build in the next RUN to use it, and a
-# cache mount is detached when its RUN ends.
+# The engines repository's sources, at the commit the driver's Cargo.lock resolves it
+# to: scripts/engines-checkout.sh reads the lock, fetches that commit from the source
+# the lock names, and leaves the tree at engines/ with a copy of the lock beside it.
+# engines is a library and commits no lock, so its workspace resolves against the
+# driver's, which keeps every third-party crate at the version the driver links
+# rather than whatever is newest on the day the image builds.
+COPY Cargo.lock /build/driver.lock
+COPY scripts/engines-checkout.sh /usr/local/bin/engines-checkout
+# The de-workspaced root manifest the buildkit below is assembled around.
+COPY containers/adversarial/buildkit/Cargo.toml /build/buildkit/Cargo.toml
+RUN engines-checkout /build/driver.lock /build/engines
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
 	--mount=type=cache,target=/usr/local/cargo/git \
 	--mount=type=cache,target=/build/target,id=tcab-container-foray,sharing=locked \
 	rustup target add wasm32-unknown-unknown \
-	# Refresh the COPYed sources' mtimes: BuildKit replays the mtimes baked into a
-	# cache-hit `COPY . .` layer, which can be OLDER than artifacts an earlier build
-	# left in the persistent target/ mount — and cargo's freshness check is
-	# mtime-based, so it would reuse those stale artifacts and bake the wrong binary.
-	# Only the handful of workspace crates is dirtied; registry dependencies are
-	# fingerprinted by version+features, not mtime.
+	# Refresh the sources' mtimes: BuildKit replays the mtimes baked into a cache-hit
+	# layer, which can be OLDER than artifacts an earlier build left in the persistent
+	# target/ mount — and cargo's freshness check is mtime-based, so it would reuse
+	# those stale artifacts and bake the wrong binary. Only the handful of workspace
+	# crates is dirtied; registry dependencies are fingerprinted by version+features,
+	# not mtime.
 	&& find /build -path /build/target -prune -o -type f -exec touch {} + \
-	# The engines repository is a library and commits no lock, so its workspace is
-	# resolved against the superrepo's: a copy of `Cargo.lock` that cargo trims to the
-	# engines graph and completes, which keeps every third-party crate at the version
-	# the services link rather than whatever is newest on the day the image builds.
-	&& cp Cargo.lock engines/Cargo.lock \
 	# The `foray` CLI (host target) — the local match runner baked onto PATH below.
 	&& cargo build --release --manifest-path engines/Cargo.toml --target-dir target -p foray-cli \
 	# The three reference controllers, compiled to `wasm32-unknown-unknown` core
@@ -116,7 +103,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 	mkdir -p /opt/foray/buildkit \
 	&& cp -a engines/crates/foray-core /opt/foray/buildkit/foray-core \
 	&& cp -a engines/crates/foray-controller-sdk /opt/foray/buildkit/foray-controller-sdk \
-	&& cp containers/adversarial/buildkit/Cargo.toml /opt/foray/buildkit/Cargo.toml \
+	&& cp /build/buildkit/Cargo.toml /opt/foray/buildkit/Cargo.toml \
 	&& rm -rf /opt/foray/buildkit/foray-core/target \
 		/opt/foray/buildkit/foray-controller-sdk/target \
 	# Build into a throwaway target dir so the baked buildkit stays source-only. It
@@ -157,10 +144,10 @@ COPY --from=foray-build /opt/foray/buildkit /opt/foray/buildkit
 COPY --from=foray-build /out/references/border-soldier.wasm /opt/foray/references/border-soldier.wasm
 COPY --from=foray-build /out/references/greedy-raider.wasm /opt/foray/references/greedy-raider.wasm
 COPY --from=foray-build /out/references/random.wasm /opt/foray/references/random.wasm
-COPY engines/crates/foray-ref-border-soldier/src/lib.rs /opt/foray/references/border-soldier/lib.rs
-COPY engines/crates/foray-ref-greedy-raider/src/lib.rs /opt/foray/references/greedy-raider/lib.rs
-COPY engines/crates/foray-ref-random/src/lib.rs /opt/foray/references/random/lib.rs
-COPY engines/crates/foray-core/maps/mirror-32x16.toml /opt/foray/maps/mirror-32x16.toml
+COPY --from=foray-build /build/engines/crates/foray-ref-border-soldier/src/lib.rs /opt/foray/references/border-soldier/lib.rs
+COPY --from=foray-build /build/engines/crates/foray-ref-greedy-raider/src/lib.rs /opt/foray/references/greedy-raider/lib.rs
+COPY --from=foray-build /build/engines/crates/foray-ref-random/src/lib.rs /opt/foray/references/random/lib.rs
+COPY --from=foray-build /build/engines/crates/foray-core/maps/mirror-32x16.toml /opt/foray/maps/mirror-32x16.toml
 
 # Make everything under /opt/foray world-readable (and directories traversable) so
 # the unprivileged run user can read the buildkit, references, and map and build a

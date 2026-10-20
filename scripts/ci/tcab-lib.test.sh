@@ -105,56 +105,6 @@ status=$?
 check_equal "another machine fails" 1 "$status"
 check_contains "and names it" "unsupported architecture 'riscv64'" "$out"
 
-echo "--- ci_manifest_index ---"
-cat >"$tmp/stream.yaml" <<'YAML'
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: tcab-staging
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    name: not-the-name
-  name: tcab-dispatcher
-  namespace: tcab-staging
-spec:
-  template:
-    metadata:
-      name: nested-is-ignored
----
-apiVersion: v1
-kind: "Service"
-metadata:
-  name: 'tcab-web'
-  namespace: "tcab-staging"
-YAML
-index="$(cd "$repo/elsewhere" && bash -c 'source "$1/scripts/ci/tcab-lib.sh"; ci_manifest_index <"$2"' _ "$repo" "$tmp/stream.yaml")"
-check_equal "one line per object, quotes dropped, - for no namespace" \
-	"Namespace - tcab-staging
-Deployment tcab-staging tcab-dispatcher
-Service tcab-staging tcab-web" "$index"
-
-echo "--- ci_assert_namespaced ---"
-assert() { # namespace file
-	(cd "$repo/elsewhere" && bash -c 'source "$1/scripts/ci/tcab-lib.sh"; ci_assert_namespaced "$2" <"$3"' \
-		_ "$repo" "$1" "$2" 2>&1)
-}
-sed '1,5d' "$tmp/stream.yaml" >"$tmp/namespaced.yaml"
-out="$(assert tcab-staging "$tmp/namespaced.yaml")"
-check_equal "objects all in the namespace pass" "0:" "$?:$out"
-out="$(assert tcab-prod "$tmp/namespaced.yaml")"
-status=$?
-check_equal "objects in another namespace fail" 1 "$status"
-check_contains "and each is named" "outside tcab-prod: Deployment/tcab-dispatcher (namespace tcab-staging)" "$out"
-check_contains "every one of them" "outside tcab-prod: Service/tcab-web (namespace tcab-staging)" "$out"
-out="$(assert tcab-staging "$tmp/stream.yaml")"
-status=$?
-check_equal "a cluster-scoped kind fails" 1 "$status"
-check_contains "and is named as cluster-scoped" "cluster-scoped: Namespace/tcab-staging" "$out"
-check_lacks "and not also as outside the namespace" "outside tcab-staging: Namespace" "$out"
-
 echo
 echo "tcab-lib.test.sh: ${pass} passed, ${fail} failed"
 [ "$fail" -eq 0 ]

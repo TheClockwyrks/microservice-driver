@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the `tcab` CLI's and core's doctests in release
+# Runs the driver crate's doctests, the `tcab` CLI's among them, in release
 # mode, the code examples inside their doc comments, which cargo-nextest does
 # not execute. It follows scripts/ci/release-test.sh in the pipeline's binary
 # jobs on Linux and Windows.
@@ -12,5 +12,5 @@ source "$REPO_ROOT/scripts/ci/cargo-lock.sh"
 # `[[patch.unused]]` block in an order that is not stable between runs (scripts/ci/cargo-lock.sh).
 mapfile -t locked < <(cargo_locked_args .)
 
-log "cargo test --release --doc (core + CLI)"
-cargo test --release ${locked[@]+"${locked[@]}"} -p test-cabinet-driver -p test-cabinet-cli --doc
+log "cargo test --release --doc (the driver crate)"
+cargo test --release ${locked[@]+"${locked[@]}"} -p test-cabinet-driver --doc

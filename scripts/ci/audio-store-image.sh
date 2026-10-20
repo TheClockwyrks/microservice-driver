@@ -7,13 +7,14 @@
 # The audio store is every published audio pack as a data-only image, which the
 # driver image bakes and a run's declared packs are staged out of. Staging it
 # downloads each clip from the audio object store through presigned read URLs and
-# verifies it against containers/sample-packs/objects.lock.json, so it needs
+# verifies it against microservice-backend's containers/sample-packs/objects.lock.json
+# (read through scripts/lib/siblings.mjs), so it needs
 # CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AUDIO_R2_BUCKET,
 # CLOUDFLARE_AUDIO_R2_PRESIGN_ACCESS_KEY_ID and
 # CLOUDFLARE_AUDIO_R2_PRESIGN_SECRET_ACCESS_KEY in the environment, and `npm ci`.
 #
-# It is built on its own, ahead of the run images, because the driver's service
-# image copies it in. scripts/ci/manifest.sh fuses the two arch tags into
+# It is built on its own, in the gates stage (.azure/project/jobs.yml), because the
+# driver image, which the image stage builds after that stage, copies it in. scripts/ci/manifest.sh fuses the two arch tags into
 # `test-cabinet-audio-store:<sha>`. The caller is already logged in to the registry.
 set -euo pipefail
 # shellcheck source=/dev/null

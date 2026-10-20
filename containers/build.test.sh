@@ -124,12 +124,27 @@ td="registry.test/tool-dc:pin1"
 tsy="registry.test/tool-sfx-synth:pin1"
 tsa="registry.test/tool-sfx-sample:pin1"
 tmu="registry.test/tool-music:pin1"
+# The tool repositories' checkouts the local path builds from: each a Dockerfile, which
+# the stub never reads. TOOL_CHECKOUTS points build.sh here, rather than beside this
+# checkout, whatever is checked out there.
+checkouts="$tmp/checkouts"
+for name in tool-sprite tool-paint tool-particle tool-voxel tool-mc tool-sn tool-dc tool-sfx-synth \
+	tool-sfx-sample tool-music; do
+	mkdir -p "$checkouts/$name"
+	echo 'FROM scratch' >"$checkouts/$name/Dockerfile"
+done
+# The reference a repository is pinned at, as containers/tool-images.toml records it.
+pinned() { # repository
+	local commit
+	commit="$(sed -nE "s/^$1 = \"([0-9a-f]{40})\"$/\1/p" "$HERE/tool-images.toml")"
+	echo "testcabinet.azurecr.io/$1:${commit}"
+}
 fresh_registry() { printf '%s\n' "$tc" "$ts" "$tp" "$tpp" "$tv" "$tm" "$tn" "$td" "$tsy" "$tsa" "$tmu" >"$tmp/registry"; }
 run() {
 	: >"$tmp/log"
 	(cd "$HERE/.." && PATH="$tmp/bin:$PATH" STUB_LOG="$tmp/log" STUB_LOCAL="$tmp/local" STUB_REGISTRY="$tmp/registry" \
 		STUB_PUSH_FAIL_REF="${STUB_PUSH_FAIL_REF:-}" STUB_PUSH_FAILS="$tmp/push-fails" REGISTRY_RETRY_DELAY=0 \
-		DOCKER="$tmp/docker" PUSH=1 RECLAIM=1 REUSE_INPUTS="${REUSE_INPUTS:-$inputs}" \
+		DOCKER="$tmp/docker" PUSH=1 RECLAIM=1 TOOL_CHECKOUTS="$checkouts" REUSE_INPUTS="${REUSE_INPUTS:-$inputs}" \
 		GG_TOOLCHAINS_IMAGE="${GG_TOOLCHAINS_IMAGE-$tc}" TOOL_SPRITE_IMAGE="${TOOL_SPRITE_IMAGE-$ts}" \
 		TOOL_PAINT_IMAGE="${TOOL_PAINT_IMAGE-$tp}" TOOL_PARTICLE_IMAGE="${TOOL_PARTICLE_IMAGE-$tpp}" \
 		TOOL_VOXEL_IMAGE="${TOOL_VOXEL_IMAGE-$tv}" TOOL_MC_IMAGE="${TOOL_MC_IMAGE-$tm}" \
@@ -297,9 +312,9 @@ check_equal "with a failure" "1" "$status"
 check_contains "after trying to pull it" "pulling $tp" "$out"
 check_lacks "and ui is not built" "${prefix}ui:sha1-amd64" "$(builds)"
 
-echo "without TOOL_PAINT_IMAGE, PUSH pulls tool-paint at the superrepo's gitlink"
+echo "without TOOL_PAINT_IMAGE, PUSH pulls tool-paint at its pin"
 : >"$tmp/local"; fresh_registry
-pinned_tp="testcabinet.azurecr.io/tool-paint:$(cd "$HERE/.." && git rev-parse HEAD:tool-paint)"
+pinned_tp="$(pinned tool-paint)"
 out="$(TOOL_PAINT_IMAGE="" REUSE_INPUTS="" REGISTRY_ATTEMPTS=1 run material)" && status=0 || status=$?
 check_contains "it pulls that image" "pulling $pinned_tp" "$out"
 
@@ -324,9 +339,9 @@ check_equal "with a failure" "1" "$status"
 check_contains "after trying to pull it" "pulling $tpp" "$out"
 check_lacks "and particle-3d is not built" "${prefix}particle-3d:sha1-amd64" "$(builds)"
 
-echo "without TOOL_PARTICLE_IMAGE, PUSH pulls tool-particle at the superrepo's gitlink"
+echo "without TOOL_PARTICLE_IMAGE, PUSH pulls tool-particle at its pin"
 : >"$tmp/local"; fresh_registry
-pinned_tpp="testcabinet.azurecr.io/tool-particle:$(cd "$HERE/.." && git rev-parse HEAD:tool-particle)"
+pinned_tpp="$(pinned tool-particle)"
 out="$(TOOL_PARTICLE_IMAGE="" REUSE_INPUTS="" REGISTRY_ATTEMPTS=1 run particle-2d)" && status=0 || status=$?
 check_contains "it pulls that image" "pulling $pinned_tpp" "$out"
 
@@ -366,15 +381,15 @@ check_equal "with a failure" "1" "$status"
 check_contains "after trying to pull it" "pulling $tv" "$out"
 check_lacks "and voxel is not built" "${prefix}voxel:sha1-amd64" "$(builds)"
 
-echo "without TOOL_VOXEL_IMAGE, PUSH pulls tool-voxel at the superrepo's gitlink"
+echo "without TOOL_VOXEL_IMAGE, PUSH pulls tool-voxel at its pin"
 : >"$tmp/local"; fresh_registry
-pinned_tv="testcabinet.azurecr.io/tool-voxel:$(cd "$HERE/.." && git rev-parse HEAD:tool-voxel)"
+pinned_tv="$(pinned tool-voxel)"
 out="$(TOOL_VOXEL_IMAGE="" REUSE_INPUTS="" REGISTRY_ATTEMPTS=1 run voxel)" && status=0 || status=$?
 check_contains "it pulls that image" "pulling $pinned_tv" "$out"
 
-echo "without TOOL_DC_IMAGE, PUSH pulls tool-dc at the superrepo's gitlink"
+echo "without TOOL_DC_IMAGE, PUSH pulls tool-dc at its pin"
 : >"$tmp/local"; fresh_registry
-pinned_td="testcabinet.azurecr.io/tool-dc:$(cd "$HERE/.." && git rev-parse HEAD:tool-dc)"
+pinned_td="$(pinned tool-dc)"
 out="$(TOOL_DC_IMAGE="" REUSE_INPUTS="" REGISTRY_ATTEMPTS=1 run dc-skinned)" && status=0 || status=$?
 check_contains "it pulls that image" "pulling $pinned_td" "$out"
 
@@ -403,9 +418,9 @@ check_equal "with a failure" "1" "$status"
 check_contains "after trying to pull it" "pulling $tsa" "$out"
 check_lacks "and sfx-sample is not built" "${prefix}sfx-sample:sha1-amd64" "$(builds)"
 
-echo "without TOOL_MUSIC_IMAGE, PUSH pulls tool-music at the superrepo's gitlink"
+echo "without TOOL_MUSIC_IMAGE, PUSH pulls tool-music at its pin"
 : >"$tmp/local"; fresh_registry
-pinned_tmu="testcabinet.azurecr.io/tool-music:$(cd "$HERE/.." && git rev-parse HEAD:tool-music)"
+pinned_tmu="$(pinned tool-music)"
 out="$(TOOL_MUSIC_IMAGE="" REUSE_INPUTS="" REGISTRY_ATTEMPTS=1 run music)" && status=0 || status=$?
 check_contains "it pulls that image" "pulling $pinned_tmu" "$out"
 
@@ -449,18 +464,20 @@ check_equal "with a failure" "1" "$status"
 check_contains "after trying to pull it" "pulling $ts" "$out"
 check_lacks "and sprite is not built" "${prefix}sprite:sha1-amd64" "$(builds)"
 
-echo "without TOOL_SPRITE_IMAGE, PUSH pulls tool-sprite at the superrepo's gitlink"
+echo "without TOOL_SPRITE_IMAGE, PUSH pulls tool-sprite at its pin"
 : >"$tmp/local"; fresh_registry
-pinned_ts="testcabinet.azurecr.io/tool-sprite:$(cd "$HERE/.." && git rev-parse HEAD:tool-sprite)"
+pinned_ts="$(pinned tool-sprite)"
 out="$(TOOL_SPRITE_IMAGE="" REUSE_INPUTS="" REGISTRY_ATTEMPTS=1 run sprite)" && status=0 || status=$?
 check_contains "it pulls that image" "pulling $pinned_ts" "$out"
 
-# The local path, deployments/local/Makefile's: no PUSH, so the tool image is built from
-# the checkout under the local naming, once, before the first image that copies it.
+# The local path, the superrepo's deployments/local/Makefile's: no PUSH, so the tool
+# image is built from its checkout under the local naming, once, before the first image
+# that copies it.
 run_local() {
 	: >"$tmp/log"
 	(cd "$HERE/.." && PATH="$tmp/bin:$PATH" STUB_LOG="$tmp/log" STUB_LOCAL="$tmp/local" STUB_REGISTRY="$tmp/registry" \
-		DOCKER="$tmp/docker" GG_TOOLCHAINS_IMAGE="$tc" IMAGE_TAG=local containers/build.sh "$@" 2>&1)
+		DOCKER="$tmp/docker" GG_TOOLCHAINS_IMAGE="$tc" TOOL_CHECKOUTS="${TOOL_CHECKOUTS-$checkouts}" \
+		IMAGE_TAG=local containers/build.sh "$@" 2>&1)
 }
 echo "without PUSH, tool-sprite is built from its checkout, once"
 : >"$tmp/local"; fresh_registry
@@ -472,7 +489,7 @@ check_equal "tool-sprite is built once, before the first image copying it" \
 	"$(builds | cut -d' ' -f1-8) "
 check_equal "exactly once" "1" "$(grep -cE -- "-t ${prefix}tool-sprite:local " "$tmp/log")"
 check_contains "from the tool-sprite checkout's own Dockerfile and context" \
-	"tool-sprite/Dockerfile $(cd "$HERE/.." && pwd)/containers/../tool-sprite" "$(grep -E -- "-t ${prefix}tool-sprite:local" "$tmp/log")"
+	"tool-sprite/Dockerfile $checkouts/tool-sprite" "$(grep -E -- "-t ${prefix}tool-sprite:local" "$tmp/log")"
 check_contains "and passed as the build arg" "--build-arg TOOL_SPRITE_IMAGE=${prefix}tool-sprite:local" \
 	"$(grep -E "^build .*${prefix}sprite-sheet:" "$tmp/log")"
 check_equal "nothing is pulled" "" "$(pulls)"
@@ -487,7 +504,7 @@ check_equal "the build passes" "0" "$status"
 check_equal "tool-paint is built once, before the first image copying it" \
 	"${prefix}base:local ${prefix}tool-paint:local ${prefix}ui:local ${prefix}material:local " "$(builds)"
 check_contains "from the tool-paint checkout's own Dockerfile and context" \
-	"tool-paint/Dockerfile $(cd "$HERE/.." && pwd)/containers/../tool-paint" "$(grep -E -- "-t ${prefix}tool-paint:local" "$tmp/log")"
+	"tool-paint/Dockerfile $checkouts/tool-paint" "$(grep -E -- "-t ${prefix}tool-paint:local" "$tmp/log")"
 for name in ui material; do
 	check_contains "and passed to $name as the build arg" "--build-arg TOOL_PAINT_IMAGE=${prefix}tool-paint:local" \
 		"$(grep -E "^build .*${prefix}${name}:" "$tmp/log")"
@@ -501,7 +518,7 @@ check_equal "the build passes" "0" "$status"
 check_equal "tool-particle is built once, before the first image copying it" \
 	"${prefix}base:local ${prefix}tool-particle:local ${prefix}particle-2d:local ${prefix}particle-3d:local " "$(builds)"
 check_contains "from the tool-particle checkout's own Dockerfile and context" \
-	"tool-particle/Dockerfile $(cd "$HERE/.." && pwd)/containers/../tool-particle" \
+	"tool-particle/Dockerfile $checkouts/tool-particle" \
 	"$(grep -E -- "-t ${prefix}tool-particle:local" "$tmp/log")"
 for name in particle-2d particle-3d; do
 	check_contains "and passed to $name as the build arg" \
@@ -516,7 +533,7 @@ check_equal "the build passes" "0" "$status"
 check_equal "tool-voxel is built once, before the first image copying it" \
 	"${prefix}base:local ${prefix}tool-voxel:local ${prefix}voxel:local ${prefix}voxel-animation:local " "$(builds)"
 check_contains "from the tool-voxel checkout's own Dockerfile and context" \
-	"tool-voxel/Dockerfile $(cd "$HERE/.." && pwd)/containers/../tool-voxel" "$(grep -E -- "-t ${prefix}tool-voxel:local" "$tmp/log")"
+	"tool-voxel/Dockerfile $checkouts/tool-voxel" "$(grep -E -- "-t ${prefix}tool-voxel:local" "$tmp/log")"
 for name in voxel voxel-animation; do
 	check_contains "and passed to $name as the build arg" "--build-arg TOOL_VOXEL_IMAGE=${prefix}tool-voxel:local" \
 		"$(grep -E "^build .*${prefix}${name}:" "$tmp/log")"
@@ -530,7 +547,7 @@ check_equal "the build passes" "0" "$status"
 check_equal "tool-mc is built once, before the first image copying it" \
 	"${prefix}base:local ${prefix}tool-mc:local ${prefix}mc:local ${prefix}mc-skinned:local " "$(builds)"
 check_contains "from the tool-mc checkout" \
-	"tool-mc/Dockerfile $(cd "$HERE/.." && pwd)/containers/../tool-mc" "$(grep -E -- "-t ${prefix}tool-mc:local" "$tmp/log")"
+	"tool-mc/Dockerfile $checkouts/tool-mc" "$(grep -E -- "-t ${prefix}tool-mc:local" "$tmp/log")"
 
 echo "without PUSH, tool-sfx-synth, tool-sfx-sample and tool-music are built from their checkouts, once each"
 : >"$tmp/local"; fresh_registry
@@ -540,7 +557,7 @@ for name in tool-sfx-synth tool-sfx-sample tool-music; do
 	check_equal "$name is built once, though two images copy from it" "1" \
 		"$(grep -cE -- "-t ${prefix}${name}:local " "$tmp/log")"
 	check_contains "from the $name checkout's own Dockerfile and context" \
-		"${name}/Dockerfile $(cd "$HERE/.." && pwd)/containers/../${name}" "$(grep -E -- "-t ${prefix}${name}:local" "$tmp/log")"
+		"${name}/Dockerfile $checkouts/${name}" "$(grep -E -- "-t ${prefix}${name}:local" "$tmp/log")"
 done
 check_contains "and passed to music as the build arg" "--build-arg TOOL_MUSIC_IMAGE=${prefix}tool-music:local" \
 	"$(grep -E "^build .*${prefix}music:" "$tmp/log")"
@@ -592,6 +609,15 @@ out="$(TOOL_SPRITE_IMAGE="$ts" run_local sprite)" && status=0 || status=$?
 check_equal "the build passes" "0" "$status"
 check_equal "it is pulled" "$ts " "$(pulls)"
 check_lacks "and not built" "tool-sprite:local" "$(builds)"
+
+echo "without PUSH and with no checkout, the pinned tool image is pulled instead"
+: >"$tmp/local"; fresh_registry; pinned tool-sprite >>"$tmp/registry"
+out="$(TOOL_CHECKOUTS="$tmp/no-checkouts" run_local sprite)" && status=0 || status=$?
+check_equal "the build passes" "0" "$status"
+check_equal "the pinned image is pulled" "$(pinned tool-sprite) " "$(pulls)"
+check_lacks "and nothing is built from a checkout" "tool-sprite:local" "$(builds)"
+check_contains "and passed as the build arg" "--build-arg TOOL_SPRITE_IMAGE=$(pinned tool-sprite)" \
+	"$(grep -E "^build .*${prefix}sprite:" "$tmp/log")"
 
 echo
 echo "build.test.sh: ${pass} passed, ${fail} failed"

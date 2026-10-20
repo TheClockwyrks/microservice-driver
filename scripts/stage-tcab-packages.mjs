@@ -1,20 +1,25 @@
 #!/usr/bin/env node
 //
-// stage-tcab-packages.mjs — build and stage the shippable Test Cabinet runtime
-// libraries into a host **package store**.
+// stage-tcab-packages.mjs — stage the shippable Test Cabinet runtime libraries into a
+// host **package store**.
 //
-// The driver image invokes this in a builder stage (see
-// deployments/images/driver.Dockerfile) after `npm ci`, writing the staged tree to
-// /opt/tcab-packages. The driver seeds each run, and a test case that declares
-// `packages` has its named libraries **vendored out of this store into the run
-// repository** (under `.vendor/packages/`) at seed time, so the produced tree is
-// self-contained; the case's workspace `package.json` depends on each via an
-// in-repo relative `file:` path (the harness validates this at resolution but does
-// not write it). A built game then consumes a produced asset that needs a runtime
-// to play it — a particle `system.json`, a voxel rig — as an ordinary installed
-// dependency. See:
+// The driver image runs this in its `tcab-packages` stage (the root Dockerfile) after
+// `npm ci`, writing the staged tree to /opt/tcab-packages. The driver seeds each run,
+// and a test case that declares `packages` has its named libraries **vendored out of
+// this store into the run repository** (under `.vendor/packages/`) at seed time, so
+// the produced tree is self-contained; the case's workspace `package.json` depends on
+// each via an in-repo relative `file:` path (the harness validates this at resolution
+// but does not write it). A built game then consumes a produced asset that needs a
+// runtime to play it — a particle `system.json`, a voxel rig — as an ordinary
+// installed dependency. See:
 //   - containers/README.md#the-shippable-test-cabinet-packages
 //   - https://docs.testcabinet.ai/testing/end-to-end/overview/ (Packages)
+//
+// The libraries are the engines repository's (and, through them, the contracts
+// repository's @clockwyrks/asset-contract), published to the project's feed at each
+// tag. This repository's npm workspace depends on each at the version of the engines
+// tag it pins, so `npm ci` installs them, already built, under `node_modules/`, and
+// this script stages what is installed: nothing is built here.
 //
 // Each package is staged as a publish-shaped copy: its `package.json` (with
 // dev-only and registry fields dropped) plus the files its `files` field publishes
@@ -27,12 +32,11 @@
 //        (outDir defaults to /opt/tcab-packages)
 //
 // `--manifests-only` stages each package's rewritten `package.json` alone, without
-// building the workspace or copying what it publishes. It is how
-// stage-tcab-packages.test.mjs checks the staged manifests of the real closure
-// without a build.
+// copying what it publishes. It is how stage-tcab-packages.test.mjs checks the staged
+// manifests of the real closure.
 //
 // The SHIPPABLE list below is the superset of the SHIPPABLE_PACKAGES allowlist in
-// contracts/crates/contracts/src/test_case.rs. That allowlist is what a case's manifest `packages`
+// the contracts repository's crates/contracts/src/test_case.rs. That allowlist is what a case's manifest `packages`
 // names are validated against, so every name a case may request must appear in both
 // lists. The extra entries here are ENGINE runtimes (@clockwyrks/simple-2d,
 // @clockwyrks/structured-2d, @clockwyrks/simple-3d, @clockwyrks/structured-3d) and the shared validator harness
@@ -51,7 +55,6 @@
 // a case able to name it through `packages` would put the tests it is measured by in
 // front of the model.
 
-import { execFileSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
@@ -67,13 +70,14 @@ import { fileURLToPath } from "node:url";
 /**
  * Everything staged into the package store. The first two are the packages a test
  * case may request via its manifest `packages` key, and those two MUST also appear
- * in SHIPPABLE_PACKAGES in contracts/crates/contracts/src/test_case.rs. The rest are engine
- * runtimes and the shared validator harness: never nameable by a case — so they are
- * staged from here and are deliberately absent from that Rust allowlist.
+ * in SHIPPABLE_PACKAGES in the contracts repository's crates/contracts/src/test_case.rs.
+ * The rest are engine runtimes and the shared validator harness: never nameable by a
+ * case — so they are staged from here and are deliberately absent from that Rust
+ * allowlist.
  *
- * Every name here must also survive the root .dockerignore ALLOWLIST, or the
- * services image's package-store stage (`COPY . .`, then this script) dies on a
- * package that is not in the build context. scripts/ci/build-context.sh asserts it.
+ * Every name here, and every @clockwyrks package one depends on, must be installed:
+ * the npm workspace's package.json names each shippable package as a dependency, at
+ * the version of the engines tag the workspace pins.
  */
 const SHIPPABLE = [
   "@clockwyrks/particle-runtime",
@@ -96,15 +100,9 @@ const args = process.argv.slice(2);
 const manifestsOnly = args.includes("--manifests-only");
 const positional = args.filter((arg) => arg !== "--manifests-only");
 const outDir = resolve(positional[0] ?? "/opt/tcab-packages");
-// The package directories of the npm workspace: this repository's own, the engines
-// repository's (the `engines/` submodule), which holds every package staged here,
-// and the contracts repository's (the `contracts/` submodule), which holds
-// @clockwyrks/asset-contract, a dependency of the voxel and particle runtimes.
-const packagesDirs = [
-  join(repoRoot, "packages"),
-  join(repoRoot, "engines", "packages"),
-  join(repoRoot, "contracts", "packages"),
-];
+// Where `npm ci` installed the project's packages: one directory per package under
+// the scope.
+const installedDir = join(repoRoot, "node_modules", "@clockwyrks");
 
 // A `files` pattern as a regular expression over a path relative to the package:
 // `**` crosses directories, `*` stays within one, and a pattern naming a
@@ -123,14 +121,13 @@ function globPattern(glob) {
   return new RegExp(`^${body}(?:/.*)?$`);
 }
 
-// Map every in-repo package name -> { dir, pkg } by reading each directory's
-// */package.json.
+// Map every installed package name -> { dir, pkg } by reading each directory's
+// package.json.
 const byName = new Map();
-for (const packagesDir of packagesDirs) {
-  if (!existsSync(packagesDir)) continue;
-  for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
+if (existsSync(installedDir)) {
+  for (const entry of readdirSync(installedDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const dir = join(packagesDir, entry.name);
+    const dir = join(installedDir, entry.name);
     const manifestPath = join(dir, "package.json");
     if (!existsSync(manifestPath)) continue;
     const pkg = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -146,8 +143,8 @@ const visit = (name) => {
   const entry = byName.get(name);
   if (!entry)
     throw new Error(
-      `shippable package ${name} not found under packages/, engines/packages/ or` +
-        " contracts/packages/ (are the engines and contracts submodules checked out?)",
+      `shippable package ${name} is not installed under node_modules/@clockwyrks/` +
+        " (run `npm ci`; every shippable package is a dependency of the npm workspace)",
     );
   closure.add(name);
   for (const dep of Object.keys(entry.pkg.dependencies ?? {})) {
@@ -156,20 +153,6 @@ const visit = (name) => {
 };
 for (const name of SHIPPABLE) visit(name);
 const members = [...closure];
-
-// Build each package (its `build` script is `tsc -b`, which also builds the
-// project references it depends on), so `dist/` is present to stage.
-if (!manifestsOnly) {
-  console.log(`building ${members.join(", ")}`);
-  execFileSync(
-    "npm",
-    ["run", "build", ...members.flatMap((n) => ["-w", n]), "--if-present"],
-    {
-      cwd: repoRoot,
-      stdio: "inherit",
-    },
-  );
-}
 
 // Stage each package into outDir/<name> (the name carries its @scope).
 rmSync(outDir, { recursive: true, force: true });

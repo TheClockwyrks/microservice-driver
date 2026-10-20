@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the `tcab` CLI's and core's tests in release mode
+# Runs the driver crate's tests, the `tcab` CLI's among them, in release mode
 # with cargo-nextest, the repository's runner (see .config/nextest.toml). It
 # follows scripts/ci/release-build.sh, which compiled the test binaries at this
 # profile, and runs on Linux and Windows: the cross-platform runtime surface
@@ -16,5 +16,5 @@ source "$REPO_ROOT/scripts/ci/cargo-lock.sh"
 # `[[patch.unused]]` block in an order that is not stable between runs (scripts/ci/cargo-lock.sh).
 mapfile -t locked < <(cargo_locked_args .)
 
-log "cargo nextest run --release (core + CLI)"
-cargo nextest run --release ${locked[@]+"${locked[@]}"} -p test-cabinet-driver -p test-cabinet-cli
+log "cargo nextest run --release (the driver crate)"
+cargo nextest run --release ${locked[@]+"${locked[@]}"} -p test-cabinet-driver

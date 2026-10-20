@@ -4,22 +4,18 @@
 #
 #   scripts/ci/provision-node.sh <dir>
 #
-# It is what .azure/tcab/node-steps.yml runs, for every project job that needs `node`
-# beyond what its image or agent carries: the Rust jobs, whose tests and builds run the
-# npm workspace, the audio store build and the docs deploy. The Rust CI image carries
-# no Node, and a hosted or pool agent's is whichever the image shipped, so a job takes
-# the one the dev container pins instead.
+# The audio store jobs run it (.azure/project/jobs.yml): the stager is a Node script,
+# and a hosted or pool agent's Node is whichever its image shipped, so the job takes the
+# one it names instead.
 #
-# The version is the NODE_VERSION .devcontainer/docker-compose.yml pins, read with the
-# template's `build_arg`. The official tarball for this machine is unpacked into
-# <dir>/node, unless what is there already reports that version, and
-# `##vso[task.prependpath]` puts <dir>/node/bin on PATH for the job's later steps.
-# Outside a pipeline that line is inert text, so a developer can run this against a
-# scratch directory to reproduce a job's provisioning.
+# The version is NODE_VERSION, which the job sets beside the step, and which the script
+# requires: a version taken from whatever the agent had would be a build nobody chose.
+# The official tarball for this machine is unpacked into <dir>/node, unless what is
+# there already reports that version, and `##vso[task.prependpath]` puts <dir>/node/bin
+# on PATH for the job's later steps. Outside a pipeline that line is inert text, so a
+# developer can run this against a scratch directory to reproduce a job's provisioning.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/ci/lib.sh
-source "$here/lib.sh"
 # shellcheck source=scripts/ci/tcab-lib.sh
 source "$here/tcab-lib.sh"
 
@@ -31,7 +27,11 @@ mkdir -p "$1"
 cache="$(cd "$1" && pwd)"
 readonly cache
 
-node_version="$(build_arg NODE_VERSION)"
+node_version="${NODE_VERSION:-}"
+if [[ ! "$node_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "provision-node.sh: NODE_VERSION must name the Node release to provision, as 24.16.0; it is '${node_version}'" >&2
+	exit 1
+fi
 readonly node_version
 case "$(uname -m)" in
 	x86_64 | amd64) node_arch=x64 ;;

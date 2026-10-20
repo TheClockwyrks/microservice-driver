@@ -8,9 +8,10 @@
 # tool-paint image, one that copies from the tool-music image, one that copies from the
 # tool-particle image, one each from the tool-voxel and tool-mc images, a full-stack-2d
 # that copies from tool-particle and tool-music, a full-stack-3d that copies from
-# tool-particle, tool-voxel and tool-music, and gg variants, with the driver's gg pin and
-# the gitlinks of every tool repository tool-images.sh lists beside them. The
-# subject is what moves each image's digest and what does not.
+# tool-particle, tool-voxel and tool-music, a performance image that bakes the Lattice
+# training scenarios, and gg variants, with the driver's gg pin, a pin file naming
+# every tool repository tool-images.sh lists, and a test-suites checkout holding the
+# scenarios beside them. The subject is what moves each image's digest and what does not.
 set -uo pipefail
 
 CI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,15 +56,21 @@ trap 'rm -rf "$tmp"' EXIT
 
 repo="$tmp/repo"
 mkdir -p "$repo/scripts/ci" \
-	"$repo/containers"/{base,base-wasm,adversarial,sprite,ui,music,voxel,mc,particle-3d,full-stack-2d,full-stack-3d,gg,blender} \
+	"$repo/containers"/{base,base-wasm,adversarial,performance,sprite,ui,music,voxel,mc,particle-3d,full-stack-2d,full-stack-3d,gg,blender} \
 	"$repo/crates/a" "$repo/crates/driver" "$repo/docs" "$repo/scripts/ci"
 cp "$CI_DIR/run-image-inputs.sh" "$CI_DIR/gg-release.sh" "$CI_DIR/tool-images.sh" "$CI_DIR/tcab-lib.sh" \
-	"$repo/scripts/ci/"
+	"$CI_DIR/lattice-training.sh" "$repo/scripts/ci/"
+# The test-suites checkout the performance image's training scenarios are found in.
+training="$tmp/suites/test-cases/performance/hard/lattice/v1.0.0/references/training"
+mkdir -p "$training"
+echo '{"scenario":1}' >"$training/one.json"
+export TCAB_DEFINITIONS_ROOT="$tmp/suites"
+unset LATTICE_TRAINING_DIGEST
 echo '0.7.1' >"$repo/crates/driver/gg-release-version"
 cat >"$repo/containers/image-names.sh" <<'NAMES'
 #!/usr/bin/env bash
 printf '%s\n' base base-wasm base-wasm-gg sprite sprite-gg ui music voxel mc particle-3d full-stack-2d full-stack-3d \
-	adversarial blender blender-gg
+	adversarial performance blender blender-gg
 NAMES
 chmod +x "$repo/containers/image-names.sh"
 # The `${...}` below are the Dockerfiles' own build-arg references, not shell expansions.
@@ -72,6 +79,7 @@ chmod +x "$repo/containers/image-names.sh"
 echo 'FROM node:24' >"$repo/containers/base/Dockerfile"
 printf 'ARG BASE_IMAGE\nFROM ${BASE_IMAGE}\nRUN true\n' >"$repo/containers/base-wasm/Dockerfile"
 printf 'ARG BASE_IMAGE\nFROM rust:1 AS build\nWORKDIR /src\nCOPY . .\nRUN cargo build\nFROM ${BASE_IMAGE}\nCOPY --from=build /out /out\n' >"$repo/containers/adversarial/Dockerfile"
+printf 'ARG BASE_IMAGE\nARG LATTICE_TRAINING_DIR=dist/lattice-training\nFROM ${BASE_IMAGE}\nCOPY ${LATTICE_TRAINING_DIR} /opt/lattice/training\n' >"$repo/containers/performance/Dockerfile"
 printf 'ARG TOOL_SPRITE_IMAGE\nARG BASE_IMAGE\nFROM ${TOOL_SPRITE_IMAGE} AS tool-sprite\nFROM ${BASE_IMAGE}\nCOPY --from=tool-sprite /usr/local/bin/draw /usr/local/bin/draw\n' >"$repo/containers/sprite/Dockerfile"
 printf 'ARG TOOL_PAINT_IMAGE\nARG BASE_IMAGE\nFROM ${TOOL_PAINT_IMAGE} AS tool-paint\nFROM ${BASE_IMAGE}\nCOPY --from=tool-paint /usr/local/bin/ui /usr/local/bin/ui\n' >"$repo/containers/ui/Dockerfile"
 printf 'ARG TOOL_MUSIC_IMAGE\nARG BASE_IMAGE\nFROM ${TOOL_MUSIC_IMAGE} AS tool-music\nFROM ${BASE_IMAGE}\nCOPY --from=tool-music /usr/local/bin/music /usr/local/bin/music\n' >"$repo/containers/music/Dockerfile"
@@ -87,19 +95,15 @@ echo 'print("export")' >"$repo/containers/blender/export.py"
 echo 'echo java' >"$repo/scripts/ci/install-java.sh"
 echo 'fn main() {}' >"$repo/crates/a/main.rs"
 echo 'prose' >"$repo/docs/page.md"
-printf '*\n!/crates\n!/Cargo.toml\n!/sub/crates\n' >"$repo/.dockerignore"
+printf '*\n!/crates\n!/Cargo.toml\n' >"$repo/.dockerignore"
 echo '[workspace]' >"$repo/Cargo.toml"
-# A submodule the allowlist reaches into, as the index holds one: a gitlink and
-# none of its files. The pins are made-up commit ids; nothing fetches them.
-readonly PIN_A=1111111111111111111111111111111111111111
-readonly PIN_B=2222222222222222222222222222222222222222
-# tool-sprite's gitlink, the commit whose image the sprite image copies from.
+# The tool repositories' pins, made-up commit ids; nothing fetches them.
 readonly SPRITE_PIN_A=3333333333333333333333333333333333333333
 readonly SPRITE_PIN_B=4444444444444444444444444444444444444444
-# tool-paint's gitlink, the commit whose image the ui image copies from.
+# tool-paint's pin, the commit whose image the ui image copies from.
 readonly PAINT_PIN_A=5555555555555555555555555555555555555555
 readonly PAINT_PIN_B=6666666666666666666666666666666666666666
-# tool-particle's gitlink, the commit whose image the particle-3d, full-stack-2d and
+# tool-particle's pin, the commit whose image the particle-3d, full-stack-2d and
 # full-stack-3d images copy from; tool-voxel's and tool-mc's, the commits whose images
 # voxel, full-stack-3d and mc copy from; tool-music's, the commit whose image music and
 # both full-stack images copy from; tool-sn's, tool-dc's, tool-sfx-synth's and
@@ -116,31 +120,39 @@ readonly MUSIC_PIN_A=ffffffffffffffffffffffffffffffffffffffff
 readonly MUSIC_PIN_B=0123456789abcdef0123456789abcdef01234567
 readonly SYNTH_PIN=89abcdef0123456789abcdef0123456789abcdef
 readonly SAMPLE_PIN=fedcba9876543210fedcba9876543210fedcba98
-(cd "$repo" && git init -q && git add -A && git update-index --add --cacheinfo "160000,${PIN_A},sub" \
-	&& git update-index --add --cacheinfo "160000,${SPRITE_PIN_A},tool-sprite" \
-	&& git update-index --add --cacheinfo "160000,${PAINT_PIN_A},tool-paint" \
-	&& git update-index --add --cacheinfo "160000,${PARTICLE_PIN_A},tool-particle" \
-	&& git update-index --add --cacheinfo "160000,${VOXEL_PIN_A},tool-voxel" \
-	&& git update-index --add --cacheinfo "160000,${MC_PIN_A},tool-mc" \
-	&& git update-index --add --cacheinfo "160000,${SN_PIN},tool-sn" \
-	&& git update-index --add --cacheinfo "160000,${DC_PIN},tool-dc" \
-	&& git update-index --add --cacheinfo "160000,${SYNTH_PIN},tool-sfx-synth" \
-	&& git update-index --add --cacheinfo "160000,${SAMPLE_PIN},tool-sfx-sample" \
-	&& git update-index --add --cacheinfo "160000,${MUSIC_PIN_A},tool-music" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m init)
+cat >"$repo/containers/tool-images.toml" <<PINS
+# The fixture's pins.
+tool-sprite = "${SPRITE_PIN_A}"
+tool-paint = "${PAINT_PIN_A}"
+tool-particle = "${PARTICLE_PIN_A}"
+tool-voxel = "${VOXEL_PIN_A}"
+tool-mc = "${MC_PIN_A}"
+tool-sn = "${SN_PIN}"
+tool-dc = "${DC_PIN}"
+tool-sfx-synth = "${SYNTH_PIN}"
+tool-sfx-sample = "${SAMPLE_PIN}"
+tool-music = "${MUSIC_PIN_A}"
+PINS
+(cd "$repo" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -q -m init)
+
+# Pins a tool repository at another commit, committed so `git reset --hard HEAD~1`
+# undoes it.
+bump() { # repository commit
+	(cd "$repo" && sed -i -E "s/^$1 = \"[0-9a-f]{40}\"$/$1 = \"$2\"/" containers/tool-images.toml \
+		&& git -c user.name=t -c user.email=t@t commit -q -am "bump $1")
+}
 
 run() { (cd "$repo" && scripts/ci/run-image-inputs.sh "$@" 2>&1); }
 digest() { run "$1" | awk '{print $2}'; }
-# Stages a change so the index, which the digest reads, sees it. Only that file: the
-# submodule has no checkout, which `git add -A` would stage as its removal.
+# Stages a change so the index, which the digest reads, sees it.
 change() { (cd "$repo" && printf '%s\n' "$2" >>"$1" && git add -- "$1"); }
 revert() { (cd "$repo" && git checkout -q -- . && git reset -q --hard HEAD); }
 
 out="$(run)"
 check_equal "lists every run image" \
-	"base base-wasm base-wasm-gg sprite sprite-gg ui music voxel mc particle-3d full-stack-2d full-stack-3d adversarial blender blender-gg" \
+	"base base-wasm base-wasm-gg sprite sprite-gg ui music voxel mc particle-3d full-stack-2d full-stack-3d adversarial performance blender blender-gg" \
 	"$(awk '{print $1}' <<<"$out" | tr '\n' ' ' | sed 's/ $//')"
-check_equal "a digest is 32 hex characters" "15" "$(grep -cE '^[a-z0-9-]+ [0-9a-f]{32} ' <<<"$out")"
+check_equal "a digest is 32 hex characters" "16" "$(grep -cE '^[a-z0-9-]+ [0-9a-f]{32} ' <<<"$out")"
 check_equal "parents: base has none" "base $(digest base) -" "$(run base)"
 check_equal "parents: the music image is from base alone, tool-music being no image built here" "base" \
 	"$(run music | awk '{print $3}')"
@@ -189,12 +201,19 @@ check_equal "nor base-wasm, the context copier's parent" "$wasm0" "$(digest base
 check_equal "nor base" "$base0" "$(digest base)"
 revert
 
-(cd "$repo" && git update-index --cacheinfo "160000,${PIN_B},sub")
-check_differs "a submodule pin the allowlist reaches into moves the image that copies the context" "$adv0" \
-	"$(digest adversarial)"
-check_equal "but not an image that copies no context" "$music0" "$(digest music)"
-check_equal "nor base" "$base0" "$(digest base)"
-revert
+perf0="$(digest performance)"
+check_equal "parents: the performance image is from base-wasm" "base-wasm" "$(run performance | awk '{print $3}')"
+echo '{"scenario":2}' >"$training/two.json"
+check_differs "a training scenario moves the performance image" "$perf0" "$(digest performance)"
+check_equal "but not one that bakes none" "$adv0" "$(digest adversarial)"
+check_equal "nor its parent" "$wasm0" "$(digest base-wasm)"
+rm "$training/two.json"
+check_equal "and back" "$perf0" "$(digest performance)"
+check_differs "LATTICE_TRAINING_DIGEST stands for the scenarios" "$perf0" \
+	"$(cd "$repo" && LATTICE_TRAINING_DIGEST=0123 scripts/ci/run-image-inputs.sh performance | awk '{print $2}')"
+out="$(cd "$repo" && TCAB_DEFINITIONS_ROOT="$tmp/nowhere" TCAB_TEST_SUITES_MIRROR="$tmp/no-mirror" \
+	scripts/ci/run-image-inputs.sh performance 2>&1)"
+check_equal "scenarios found nowhere fail the image that bakes them" "1" "$?"
 
 change docs/page.md 'more prose'
 check_equal "a file the allowlist excludes moves nothing: adversarial" "$adv0" "$(digest adversarial)"
@@ -228,9 +247,8 @@ check_equal "but not the variant's parent" "$wasm0" "$(digest base-wasm)"
 check_equal "nor any other image" "$sprite0" "$(digest sprite)"
 (cd "$repo" && echo '0.7.1' >crates/driver/gg-release-version)
 
-(cd "$repo" && git update-index --cacheinfo "160000,${SPRITE_PIN_B},tool-sprite" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m 'bump tool-sprite')
-check_differs "a bump of the tool-sprite gitlink moves the image that copies from tool-sprite" "$sprite0" "$(digest sprite)"
+bump tool-sprite "${SPRITE_PIN_B}"
+check_differs "a bump of the tool-sprite pin moves the image that copies from tool-sprite" "$sprite0" "$(digest sprite)"
 check_differs "and its gg variant" "$spritegg0" "$(digest sprite-gg)"
 check_equal "but not one that copies from another tool image" "$ui0" "$(digest ui)"
 check_equal "music among them" "$music0" "$(digest music)"
@@ -243,9 +261,8 @@ check_differs "another image is another input" "$sprite0" \
 	"$(cd "$repo" && TOOL_SPRITE_IMAGE=registry.test/tool-sprite:other \
 		scripts/ci/run-image-inputs.sh sprite | awk '{print $2}')"
 
-(cd "$repo" && git update-index --cacheinfo "160000,${PAINT_PIN_B},tool-paint" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m 'bump tool-paint')
-check_differs "a bump of the tool-paint gitlink moves the image that copies from tool-paint" "$ui0" "$(digest ui)"
+bump tool-paint "${PAINT_PIN_B}"
+check_differs "a bump of the tool-paint pin moves the image that copies from tool-paint" "$ui0" "$(digest ui)"
 check_equal "but not the one that copies from tool-sprite" "$sprite0" "$(digest sprite)"
 check_equal "nor the one that copies from tool-music" "$music0" "$(digest music)"
 (cd "$repo" && git reset -q --hard HEAD~1)
@@ -254,9 +271,8 @@ check_differs "TOOL_PAINT_IMAGE naming another image is another input" "$ui0" \
 	"$(cd "$repo" && TOOL_PAINT_IMAGE=registry.test/tool-paint:other \
 		scripts/ci/run-image-inputs.sh ui | awk '{print $2}')"
 
-(cd "$repo" && git update-index --cacheinfo "160000,${PARTICLE_PIN_B},tool-particle" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m 'bump tool-particle')
-check_differs "a bump of the tool-particle gitlink moves the image that copies from tool-particle" \
+bump tool-particle "${PARTICLE_PIN_B}"
+check_differs "a bump of the tool-particle pin moves the image that copies from tool-particle" \
 	"$particle0" "$(digest particle-3d)"
 check_differs "and the full-stack image that copies from it beside tool-music" "$fullstack0" \
 	"$(digest full-stack-2d)"
@@ -273,9 +289,8 @@ check_differs "TOOL_PARTICLE_IMAGE naming another image is another input" "$part
 	"$(cd "$repo" && TOOL_PARTICLE_IMAGE=registry.test/tool-particle:other \
 		scripts/ci/run-image-inputs.sh particle-3d | awk '{print $2}')"
 
-(cd "$repo" && git update-index --cacheinfo "160000,${VOXEL_PIN_B},tool-voxel" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m 'bump tool-voxel')
-check_differs "a bump of the tool-voxel gitlink moves the voxel image" "$voxel0" "$(digest voxel)"
+bump tool-voxel "${VOXEL_PIN_B}"
+check_differs "a bump of the tool-voxel pin moves the voxel image" "$voxel0" "$(digest voxel)"
 check_differs "and full-stack-3d, which copies voxel from it too" "$fs3d0" "$(digest full-stack-3d)"
 check_equal "but not the mc image" "$mc0" "$(digest mc)"
 check_equal "nor full-stack-2d" "$fullstack0" "$(digest full-stack-2d)"
@@ -286,17 +301,15 @@ check_differs "TOOL_VOXEL_IMAGE naming another image is another input" "$voxel0"
 	"$(cd "$repo" && TOOL_VOXEL_IMAGE=registry.test/tool-voxel:other \
 		scripts/ci/run-image-inputs.sh voxel | awk '{print $2}')"
 
-(cd "$repo" && git update-index --cacheinfo "160000,${MC_PIN_B},tool-mc" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m 'bump tool-mc')
-check_differs "a bump of the tool-mc gitlink moves the mc image" "$mc0" "$(digest mc)"
+bump tool-mc "${MC_PIN_B}"
+check_differs "a bump of the tool-mc pin moves the mc image" "$mc0" "$(digest mc)"
 check_equal "but not the voxel image" "$voxel0" "$(digest voxel)"
 check_equal "nor full-stack-3d" "$fs3d0" "$(digest full-stack-3d)"
 (cd "$repo" && git reset -q --hard HEAD~1)
 check_equal "and back" "$mc0" "$(digest mc)"
 
-(cd "$repo" && git update-index --cacheinfo "160000,${MUSIC_PIN_B},tool-music" \
-	&& git -c user.name=t -c user.email=t@t commit -q -m 'bump tool-music')
-check_differs "a bump of the tool-music gitlink moves the music image" "$music0" "$(digest music)"
+bump tool-music "${MUSIC_PIN_B}"
+check_differs "a bump of the tool-music pin moves the music image" "$music0" "$(digest music)"
 check_differs "and full-stack-2d, which copies music from it" "$fullstack0" "$(digest full-stack-2d)"
 check_differs "and full-stack-3d" "$fs3d0" "$(digest full-stack-3d)"
 check_equal "but not the particle-3d image" "$particle0" "$(digest particle-3d)"

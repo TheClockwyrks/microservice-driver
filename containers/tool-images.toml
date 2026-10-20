@@ -1,0 +1,25 @@
+# The commit of each `tool-*` repository whose image the run images copy their tool
+# binaries from: `testcabinet.azurecr.io/<repository>:<commit>`, which that
+# repository's pipeline pushes on every gated push to its master and staging.
+#
+# scripts/ci/tool-images.sh reads this file, and is the only reader. A repository
+# added here needs a run image whose Dockerfile declares the build argument its name
+# derives (`TOOL_SPRITE_IMAGE` for `tool-sprite`). Each line is one repository and a
+# full commit, in this shape and no other, because a shell script parses it.
+#
+# The driver links `test-cabinet-draw` from tool-sprite and `test-cabinet-voxel`
+# from tool-voxel, so those two repositories are in Cargo.lock as well, and
+# `scripts/ci/tool-images.sh lock` holds each pin here to the commit the lock
+# resolves: a run image carries the tool the driver was built and tested against.
+# Bump the two together: `cargo update -p test-cabinet-draw` (or
+# `-p test-cabinet-voxel`), then the line here.
+tool-sprite = "1da52d09f01ac9914a6c162bbd88f41861110138"
+tool-paint = "3346d5df92070ae4f438475fc6c8be5dbd896bb0"
+tool-particle = "9553ce97594c3e0ce70d5bd7783d4823e13fdc3c"
+tool-voxel = "cf7372247c43ec837caafb944aa0ff0213f351b6"
+tool-mc = "44d9f3c073a61d14b2ec31739139476bc65e6b15"
+tool-sn = "48b703ad8c24b27088f09de27dc6bd1d574a9067"
+tool-dc = "416560430be57cd1d02483818261745d1bcdcfae"
+tool-sfx-synth = "13c908f16051914cbb3cefac42d4aa0f9b6a8964"
+tool-sfx-sample = "86186bb4fa0e6e1eead29d885ef451717986fe96"
+tool-music = "412a48fb245770fbd3b5720b7e3cafef0f3b824e"

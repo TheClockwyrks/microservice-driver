@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke-checks an already-built `tcab` binary: it must print a version, show its
 # help, and list exactly the commands the CLI overview documents
-# (apps/docs/src/content/docs/components/cli/overview.md), none of the run-side
+# (https://docs.testcabinet.ai/components/cli/overview/), none of the run-side
 # commands the console took over. This is the single definition of "is
 # this binary flat-out broken?" — it runs no build, needs no container runtime or
 # API keys, and simply executes the binary it is given.

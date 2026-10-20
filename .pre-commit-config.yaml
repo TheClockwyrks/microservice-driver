@@ -18,7 +18,11 @@ repos:
       - id: check-added-large-files
         # The extraction's commit map, one line per monorepo commit, is larger
         # than the hook's 500 KB and is committed once, as filter-repo wrote it.
-        exclude: "^history/commit-map$"
+        # The copies of test-case versions the Rust tests read keep what their
+        # source ships, a reference implementation's music track or gameplay
+        # recording among them, so they are left out too, as they are for
+        # end-of-file-fixer below.
+        exclude: "^history/commit-map$|^crates/[^/]+/testdata/definitions/"
       - id: check-case-conflict
       - id: check-executables-have-shebangs
       - id: check-illegal-windows-names
@@ -28,7 +32,10 @@ repos:
         exclude: '(^|/)tsconfig(\.[^/]+)?\.json$'
       - id: check-merge-conflict
       - id: end-of-file-fixer
-        exclude: '\.(svg|png|ico|woff2?)$'
+        # Binary assets are left alone, and so are the copies of test-case
+        # versions the Rust tests read, which keep their source's bytes, some
+        # of them files that end without a newline.
+        exclude: '\.(svg|png|ico|woff2?)$|^crates/[^/]+/testdata/definitions/'
       - id: check-shebang-scripts-are-executable
         exclude: '\.rs$'
       - id: check-symlinks

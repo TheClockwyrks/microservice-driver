@@ -39,7 +39,7 @@ if [[ -z "$sources" ]]; then
 fi
 if [[ "$(wc -l <<<"$sources")" -ne 1 ]]; then
 	echo "engines-checkout.sh: ${lock} resolves the engines repository more than once:" >&2
-	sed 's/^/    /' <<<"$sources" >&2
+	printf '    %s\n' "${sources//$'\n'/$'\n'    }" >&2
 	exit 1
 fi
 read -r url commit <<<"$sources"

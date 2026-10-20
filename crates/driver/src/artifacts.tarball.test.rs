@@ -156,25 +156,35 @@ fn writes_the_end_of_archive_trailer() {
 
 #[test]
 fn leaves_nothing_behind_in_the_scratch_dir() {
-    // The tarball is created with `tempfile_in`, so it has no directory entry: the
-    // kernel reclaims it when the descriptor closes, including when the driver is
-    // killed mid-upload. Nothing needs cleaning up on any error path, and a later run
-    // cannot trip over a previous one's archive.
+    // The tarball is created with `tempfile_in`, so on Unix it has no directory
+    // entry: the kernel reclaims it when the descriptor closes, including when the
+    // driver is killed mid-upload. Nothing needs cleaning up on any error path, and
+    // a later run cannot trip over a previous one's archive. Windows has no
+    // unlinked file, so there the archive is a delete-on-close entry until its
+    // handle closes, and is gone once it does.
     let out = TempDir::new().expect("tempdir");
     run_tree(out.path(), "run-1");
 
     let file = tar_run_dir(&out.path().join("run-1"), out.path()).expect("tar");
 
-    let names: Vec<String> = std::fs::read_dir(out.path())
-        .expect("read scratch")
-        .map(|entry| entry.expect("entry").file_name().display().to_string())
-        .collect();
+    let names = || -> Vec<String> {
+        std::fs::read_dir(out.path())
+            .expect("read scratch")
+            .map(|entry| entry.expect("entry").file_name().display().to_string())
+            .collect()
+    };
+    #[cfg(unix)]
     assert_eq!(
-        names,
+        names(),
         vec!["run-1"],
         "the scratch dir must hold only the run tree, never the archive of it"
     );
     drop(file);
+    assert_eq!(
+        names(),
+        vec!["run-1"],
+        "the archive must leave the scratch dir once its handle closes"
+    );
 }
 
 #[test]

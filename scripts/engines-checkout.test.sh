@@ -81,8 +81,9 @@ check_contains "saying so" "resolves no crate of the engines repository" "$out"
 out="$(run "$tmp/missing.lock" "$tmp/out5/engines")"
 check_equal "a missing lock fails" "1" "$?"
 lock "$tmp/gone.lock" "1111111111111111111111111111111111111111"
-out="$(run "$tmp/gone.lock" "$tmp/out6/engines")"
-check_equal "a commit the source lacks fails" "1" "$([ "$?" -ne 0 ] && echo 1)"
+status=0
+out="$(run "$tmp/gone.lock" "$tmp/out6/engines")" || status=$?
+check_equal "a commit the source lacks fails" "1" "$((status != 0))"
 out="$(run "$tmp/one.lock" "$tmp/out/engines")"
 check_equal "an existing destination fails" "1" "$?"
 check_contains "rather than mixing two trees" "already exists" "$out"

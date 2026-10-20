@@ -171,6 +171,7 @@ async fn main() -> ExitCode {
 
 /// Resolve on the driver's first `SIGTERM`. A signal handler that cannot be
 /// installed is logged and never resolves, leaving the signal's default action.
+#[cfg(unix)]
 fn sigterm() -> impl std::future::Future<Output = ()> {
     let signal = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate());
     async move {
@@ -185,6 +186,18 @@ fn sigterm() -> impl std::future::Future<Output = ()> {
             }
         }
         std::future::pending().await
+    }
+}
+
+/// Windows has no `SIGTERM`, and the driver runs as a Linux pod's process, so
+/// a build for Windows, which the test suite runs on, resolves on the
+/// console's Ctrl+C instead, the nearest request to stop that it has. A handler
+/// that cannot be installed is logged and never resolves.
+#[cfg(not(unix))]
+async fn sigterm() {
+    if let Err(err) = tokio::signal::ctrl_c().await {
+        tracing::warn!(error = %err, "could not install the Ctrl+C handler");
+        std::future::pending::<()>().await;
     }
 }
 

@@ -4,7 +4,7 @@
 # this one image. It is the base run-container image plus the baked-in `particle-2d`
 # binary, the tool a 2D particle run authors its emitter system with (see the
 # asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/particle-binaries.md`), built
+# `https://docs.testcabinet.ai/testing/asset-generation/particle-binaries/`), built
 # from `crates/particle-2d` in the `tool-particle` repository. The 2D binary composites
 # its preview in a 2D raster path, so — like the sprite image and unlike the 3D
 # `particle-3d` image — it needs no Mesa/Vulkan runtime.

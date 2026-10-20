@@ -13,8 +13,8 @@
 # systems). A 3D game still needs sprites and sheets for its UI and its 2D overlays, and it
 # needs sound exactly as a 2D one does, so the 3D set is an ADDITION and not a replacement:
 # a case that declares the 3D dimension loses nothing it would have had. See the
-# asset-generation docs under `apps/docs/src/content/docs/testing/asset-generation/` for
-# each tool and `apps/docs/src/content/docs/testing/full-stack/` for how a full-stack case
+# asset-generation docs under `https://docs.testcabinet.ai/testing/asset-generation/` for
+# each tool and `https://docs.testcabinet.ai/testing/full-stack/` for how a full-stack case
 # wires the produced assets into its build.
 #
 # WHAT IS DELIBERATELY NOT HERE: the surface-extraction meshing families — `mc`/`sn`/`dc`

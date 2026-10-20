@@ -1,0 +1,9 @@
+# The answers this repository was rendered with and the superrepo commit its
+# kit was last rendered or updated from. Copier maintains it through the
+# superrepo's scripts/repos/render.py; a change made here is overwritten by
+# the next update.
+_commit: v0.6.3-5285-g90e701063
+_src_path: ..
+description: 'The run engine: tcab-driver, the tcab CLI and the run-container images.'
+kind: application
+name: microservice-driver

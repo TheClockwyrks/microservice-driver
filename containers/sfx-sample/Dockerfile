@@ -7,7 +7,7 @@
 # written into the started container at `/opt/audio` (the empty, run-user-owned root
 # the base image creates), so this image is the same whatever a case declares and
 # publishing a pack version needs no rebuild of it. See the asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/audio-binaries.md` and the
+# `https://docs.testcabinet.ai/testing/asset-generation/audio-binaries/` and the
 # sample-library section of `containers/README.md`. The audio tools render on the CPU,
 # so — like the sprite image and unlike the voxel family — this image needs no
 # Mesa/Vulkan runtime.

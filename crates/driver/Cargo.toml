@@ -1,13 +1,22 @@
 [package]
 name = "test-cabinet-driver"
+description = "The run engine: tcab-driver, the tcab CLI and the run-container images."
 edition.workspace = true
 version.workspace = true
 license.workspace = true
+repository.workspace = true
 publish.workspace = true
 
+# The driver: the per-run executor a dispatcher's Job runs.
 [[bin]]
 name = "tcab-driver"
 path = "src/main.rs"
+
+# The CLI, the package's second binary: a thin shell over the same run engine the
+# driver executes a run with (https://docs.testcabinet.ai/components/cli/overview/).
+[[bin]]
+name = "tcab"
+path = "src/bin/tcab/main.rs"
 
 [lib]
 name = "test_cabinet_driver"
@@ -161,6 +170,15 @@ tokio-util = { workspace = true }
 # chunks the body stream hands over, which is how a stalled attempt is told from a
 # slow one.
 futures-util = { workspace = true }
+
+# The CLI's own dependencies (`src/bin/tcab/`). Its command line, parsed by clap.
+clap = { workspace = true }
+# Terminal styling for the CLI's live event stream, colored only when a terminal
+# is attached.
+anstyle = { workspace = true }
+anstream = { workspace = true }
+# The CLI loads its configuration from `.env.runner` (see `.env.runner.example`).
+dotenvy = { workspace = true }
 
 [dev-dependencies]
 # A stub repos service for the bundle upload's tests (`src/bundle.test.rs`).

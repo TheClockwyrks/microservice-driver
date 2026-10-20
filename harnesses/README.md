@@ -22,9 +22,9 @@ into that container **at run time**, just before the harness session, by running
 the manifest's `install` command. Installing at run time means a run always gets
 the harness's most recently published version, rather than whatever was current
 when an image was last built. This mirrors how a test case prepares its workspace
-with an [init command](../apps/docs/src/content/docs/components/core/execution.md#init).
+with an [init command](https://docs.testcabinet.ai/components/driver/execution/#init).
 
-The one exception is [`gg`](../apps/docs/src/content/docs/gg/overview.md), which
+The one exception is [`gg`](https://docs.testcabinet.ai/gg/overview/), which
 ships no manifest and is not one of the eight above: it is a static binary copied
 into the container, and a gg run resolves a `<name>-gg`
 [variant](../containers/README.md#the-exception-the--gg-variants) of its image
@@ -62,4 +62,4 @@ normalized events — lives in the adapter for that slug in
 `crates/driver/src/harness_registry.rs`, because it is logic rather than
 configuration. Adding a brand-new harness therefore means both a manifest here
 and an adapter (plus a `HarnessSlug` variant) there. See
-[Agent Harnesses](../apps/docs/src/content/docs/components/core/harnesses.md).
+[Agent Harnesses](https://docs.testcabinet.ai/components/driver/harnesses/).

@@ -6,7 +6,7 @@
 # surface-extraction meshing tool an animated Dual Contouring run uses (a
 # high-fidelity, sharp-feature-preserving QEF mesher — the `DualContouringMesher`
 # from tool-model-core's `voxel-mesh`; see the asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/`). Static Dual Contouring
+# `https://docs.testcabinet.ai/testing/asset-generation/`). Static Dual Contouring
 # runs use the separate dc image, which bakes in `dc` instead — see
 # `containers/dc/Dockerfile`.
 #

@@ -14,7 +14,7 @@
 // to play it — a particle `system.json`, a voxel rig — as an ordinary installed
 // dependency. See:
 //   - containers/README.md#the-shippable-test-cabinet-packages
-//   - apps/docs/.../testing/end-to-end/overview.md (Packages)
+//   - https://docs.testcabinet.ai/testing/end-to-end/overview/ (Packages)
 //
 // Each package is staged as a publish-shaped copy: its `package.json` (with
 // dev-only and registry fields dropped) plus the files its `files` field publishes

@@ -5,7 +5,7 @@
 # A run is staged with the audio packs its test case declares in `[audio] packs`, copied
 # into the container when it starts out of a store on the host (see
 # `crates/driver/src/audio_stage.rs` and
-# `apps/docs/src/content/docs/components/core/execution.md`). In a cluster the driver
+# `https://docs.testcabinet.ai/components/driver/execution/`). In a cluster the driver
 # image carries that store at `/opt/tcab-audio`. On a laptop running `tcab validate`
 # there is nothing to carry it, so this script puts it there — once.
 #

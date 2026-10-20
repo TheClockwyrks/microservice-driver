@@ -6,7 +6,7 @@
 # compiles to a wasm core module with *in-container* during the run — plus, like the
 # adversarial image, The Test Cabinet's own tooling baked in: here the Lattice
 # toolchain a model develops a factory-simulation engine with (see the performance
-# docs under `apps/docs/src/content/docs/testing/performance/`):
+# docs under `https://docs.testcabinet.ai/testing/performance/`):
 #
 #   - the **`lattice` CLI** (`/usr/local/bin/lattice`), the binary a model runs to
 #     solve scenarios with the oracle and score its engine locally — the same

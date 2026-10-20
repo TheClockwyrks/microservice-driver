@@ -3,20 +3,20 @@
 These are the container images The Test Cabinet runs benchmarks inside. Every run
 executes in an isolated container seeded with a fresh git repository, so a model
 cannot reach the host or other runs' work (see
-`../apps/docs/src/content/docs/components/core/execution.md`).
+`https://docs.testcabinet.ai/components/driver/execution/`).
 
 There is **one image per run kind**, selected by a run's [test
-type](../apps/docs/src/content/docs/testing/), by — for asset-generation — its
-[`asset_kind`](../apps/docs/src/content/docs/testing/asset-generation/manifests/overview.md),
+type](https://docs.testcabinet.ai/testing/), by — for asset-generation — its
+[`asset_kind`](https://docs.testcabinet.ai/testing/asset-generation/manifests/overview/),
 and by — for full-stack — its
-[`asset_dimension`](../apps/docs/src/content/docs/testing/full-stack/manifests.md). The
+[`asset_dimension`](https://docs.testcabinet.ai/testing/full-stack/manifests/). The
 full set is whatever [`build.sh`](#building) builds; the notable ones:
 
 - the **base** image, the shared Node foundation every other image is built `FROM`
   (directly, or via **base-wasm**) except the self-contained blender image; it is
   not itself resolved as a run image;
 - the **base-wasm** image, which every
-  [end-to-end](../apps/docs/src/content/docs/testing/end-to-end/) run executes
+  [end-to-end](https://docs.testcabinet.ai/testing/end-to-end/) run executes
   in — the base plus the shared **Rust → WebAssembly toolchain** (Rust with the
   `wasm32-unknown-unknown` target, `wasm-bindgen`, `wasm-pack`, and `binaryen`),
   so an end-to-end or full-stack build may author its core simulation in Rust and
@@ -26,13 +26,13 @@ full set is whatever [`build.sh`](#building) builds; the notable ones:
   `draw`). It is the parent of the two full-stack images, the adversarial image, and
   the performance image;
 - the **full-stack-2d** and **full-stack-3d** images, which every
-  [full-stack](../apps/docs/src/content/docs/testing/full-stack/overview.md) run
+  [full-stack](https://docs.testcabinet.ai/testing/full-stack/overview/) run
   executes in — **base-wasm** plus the asset-generation binaries the model produces
   the game's own assets with during the run. Neither bakes audio: `sfx-sample` and
   `music` read the packs the case declares in `[audio] packs`, staged into
   `/opt/audio` when the container starts (see
   [the audio store](#the-audio-store)). The case's
-  [`asset_dimension`](../apps/docs/src/content/docs/testing/full-stack/manifests.md)
+  [`asset_dimension`](https://docs.testcabinet.ai/testing/full-stack/manifests/)
   picks between them: `"2d"` (the default) resolves **full-stack-2d**, which carries
   `draw`, `draw-sheet`, `particle-2d`, `sfx-synth`, `sfx-sample` and `music`; `"3d"`
   resolves **full-stack-3d**, which carries those six _plus_ `voxel`, `voxel-anim`
@@ -43,7 +43,7 @@ full set is whatever [`build.sh`](#building) builds; the notable ones:
   `-anim`/`-skin` siblings) and Blender are deliberately in neither: they are a far
   heavier toolchain and no full-stack case needs one yet;
 - the **sprite** image, which every single-sprite
-  [asset-generation](../apps/docs/src/content/docs/testing/asset-generation/overview.md)
+  [asset-generation](https://docs.testcabinet.ai/testing/asset-generation/overview/)
   run (`asset_kind = "sprite"`) executes in — the base image plus the baked-in
   `draw` binary;
 - the **sprite-sheet** image, which every sprite-sheet asset-generation run
@@ -110,14 +110,14 @@ full set is whatever [`build.sh`](#building) builds; the notable ones:
   — the base image plus the baked-in `music` binary, copied out of the tool-music
   image. The instrument bank it plays arrives at container start;
 - the **adversarial** image, which every
-  [adversarial](../apps/docs/src/content/docs/testing/adversarial/overview.md)
+  [adversarial](https://docs.testcabinet.ai/testing/adversarial/overview/)
   run executes in — **base-wasm** (which supplies the Rust + `wasm32-unknown-unknown`
   toolchain a model's controller builds to a wasm core module with in-container)
   plus the Foray tooling compiled from the engines submodule's `engines/crates/`: the
   baked-in `foray` CLI, the
   controller buildkit, and the reference modules + map; and
 - the **performance** image, which every
-  [performance](../apps/docs/src/content/docs/testing/performance/overview.md)
+  [performance](https://docs.testcabinet.ai/testing/performance/overview/)
   run executes in — **base-wasm** (which supplies the Rust + `wasm32-unknown-unknown`
   toolchain a model's engine builds to a wasm core module with in-container) plus
   the Lattice tooling compiled from the engines submodule's `engines/crates/`: the
@@ -135,7 +135,7 @@ runner picks the image by test type, asset kind, and asset dimension via
 ## The exception: the `-gg` variants
 
 `gg` is The Test Cabinet's own in-container harness, and under
-[responses-as-code](../apps/docs/src/content/docs/gg/responses-as-code/overview.md) a
+[responses-as-code](https://docs.testcabinet.ai/gg/responses-as-code/overview/) a
 model answers with a **program**. The language that program is written in is a run
 variable, and a compiled language needs its **compiler on the turn path** — inside the run
 container, on every turn. gg itself is a single static binary copied in at run time, which
@@ -288,7 +288,7 @@ base-wasm.
 
 The base run image carries nothing for the **shippable Test Cabinet packages**
 (below): a case that declares
-[`packages`](../apps/docs/src/content/docs/testing/end-to-end/manifests.md) has
+[`packages`](https://docs.testcabinet.ai/testing/end-to-end/manifests/) has
 them **vendored into its run repository at seed time**, so the produced tree is
 self-contained. The packages that get vendored come from a host **package store**
 baked into the [driver image](../deployments/images/services.Dockerfile), which is
@@ -326,7 +326,7 @@ it.
 
 Crucially, this toolchain — like the asset-generation binaries — is on `PATH` **only
 while the run is live**. It is **not** present when a build is re-run to
-[validate](../apps/docs/src/content/docs/components/core/validation.md) it or when the
+[validate](https://docs.testcabinet.ai/components/driver/validation/) it or when the
 published source is rebuilt (that rebuild is a bare, Node-only `npm ci && npm run build`
 off the run container). So a build that uses Rust must **compile once during the run and
 commit the resulting `.wasm`** (and any generated JS glue) as a build input its bundler
@@ -336,7 +336,7 @@ it must not shell out to `draw`. The case's specification states that contract.
 ## The shippable Test Cabinet packages
 
 Some produced assets are **not self-describing data** the way a sprite PNG is: a
-[particle](../apps/docs/src/content/docs/testing/asset-generation/particle-binaries.md)
+[particle](https://docs.testcabinet.ai/testing/asset-generation/particle-binaries/)
 effect is a `system.json` a game plays by **simulating it live**, and a voxel/mesh
 rig is **posed** at runtime. A game that consumes one needs the _runtime that
 plays it_, not just the asset. Those runtimes already exist in this repo as the
@@ -345,7 +345,7 @@ plays it_, not just the asset. Those runtimes already exist in this repo as the
 [`@clockwyrks/voxel-runtime`](../engines/packages/voxel-runtime), from the
 `engines` repository, checked out at `engines/`); an end-to-end case
 names the ones it needs with the manifest's
-[`packages`](../apps/docs/src/content/docs/testing/end-to-end/overview.md#packages)
+[`packages`](https://docs.testcabinet.ai/testing/end-to-end/overview/#packages)
 key, and the run consumes them as ordinary installed dependencies.
 
 Because these packages are private (never npm-published) and must match the format
@@ -388,7 +388,7 @@ tree later lives — the run container, the validation host, or a clone of the
 published repo — with no absolute path to break. Each vendored copy must be the
 version the lockfile links it at; a store holding another version fails the seed.
 The model imports the library like any other dependency (see
-[Packages](../apps/docs/src/content/docs/testing/end-to-end/overview.md#packages)).
+[Packages](https://docs.testcabinet.ai/testing/end-to-end/overview/#packages)).
 
 **Engine runtimes share the store.** An [engine](../engines/engines/README.md) is the
 runtime a produced game is built on, and its package is staged into the same store
@@ -410,7 +410,7 @@ list alone, because a run selects it. So does `@clockwyrks/case-harness`, the
 shared harness a case's engineless validators are written over: nothing seeds it
 into a run repository at all, the reporter copying it out of the store into the
 staged validator project once the container is gone (see
-[Validation](../apps/docs/src/content/docs/components/core/validation.md)). A case
+[Validation](https://docs.testcabinet.ai/components/driver/validation/)). A case
 able to declare it would be handed the suites it is measured by. Every name in the
 allowlist must appear in the staging list, so a case only ever names a package the
 image carries.
@@ -441,26 +441,26 @@ To add one:
 ## Asset-generation images
 
 Asset-generation runs split by
-[`asset_kind`](../apps/docs/src/content/docs/testing/asset-generation/manifests/overview.md):
+[`asset_kind`](https://docs.testcabinet.ai/testing/asset-generation/manifests/overview/):
 a single-sprite case draws with `draw`, a sprite-sheet case draws with `draw-sheet`. Each
 gets its own image so a run carries only the tool it uses:
 
 - `sprite/` is the base image plus exactly the **`draw`** binary, the drawing tool
   a single-sprite
-  [asset-generation](../apps/docs/src/content/docs/testing/asset-generation/overview.md)
+  [asset-generation](https://docs.testcabinet.ai/testing/asset-generation/overview/)
   run uses, copied out of the `tool-sprite` image (see [the tool images](#the-tool-images)).
 - `sprite-sheet/` is the base image plus exactly the **`draw-sheet`** binary, the
   drawing tool a sprite-sheet run uses (`draw` plus a required `--frame` on every
   operation), copied out of the `tool-sprite` image likewise.
 - `ui/` is the base image plus the **`paint`** and **`ui`** binaries, the
-  [UI](../apps/docs/src/content/docs/testing/asset-generation/ui-binaries.md) tools a
+  [UI](https://docs.testcabinet.ai/testing/asset-generation/ui-binaries/) tools a
   run uses to paint a high-resolution interface asset — `paint` for layered raster
   work (brushes, blend modes, masks, filters, effects) and `ui` for crisp vector
   shapes, text, and nine-slice. Both ship in the one image because a run interleaves
   them over a shared workspace. Both are copied out of the `tool-paint` image (see
   [the tool images](#the-tool-images)).
 - `material/` is the base image plus the **`texture`** and **`pbr`** binaries, the
-  [material](../apps/docs/src/content/docs/testing/asset-generation/material-binaries.md)
+  [material](https://docs.testcabinet.ai/testing/asset-generation/material-binaries/)
   tools a run uses to build a tileable PBR material — `texture` for seamless map
   painting and `pbr` for baking normal/AO maps, setting uniforms, assembling
   `material.json`, and rendering the lit 3D preview. Both are copied out of the
@@ -482,21 +482,21 @@ gets its own image so a run carries only the tool it uses:
   high-fidelity, sharp-feature meshing run uses, copied out of the `tool-dc` image.
 - `mc-skinned/`, `sn-skinned/`, and `dc-skinned/` are the base image plus exactly the
   **`mc-skin`** / **`sn-skin`** / **`dc-skin`** binary, the
-  [skinned-character](../apps/docs/src/content/docs/testing/asset-generation/skinned-binaries.md)
+  [skinned-character](https://docs.testcabinet.ai/testing/asset-generation/skinned-binaries/)
   tool a run uses to sculpt one continuous body field, bind it to a model-invented
   skeleton, and animate it as a deforming skin — one image per algorithm (low-poly /
   smooth / sharp), each inherently rigged, copied out of the `tool-mc`, `tool-sn` or
   `tool-dc` image.
 - `particle-2d/` and `particle-3d/` are the base image plus exactly the **`particle-2d`**
   / **`particle-3d`** binary, the
-  [particle-effect](../apps/docs/src/content/docs/testing/asset-generation/particle-binaries.md)
+  [particle-effect](https://docs.testcabinet.ai/testing/asset-generation/particle-binaries/)
   tool a run uses to author an emitter system the review UI and a game play by simulating
   it live. Each is copied out of the `tool-particle` image (see
   [the tool images](#the-tool-images)), and `particle-3d/` installs the Mesa
   software-Vulkan runtime its preview renders with.
 - `sfx-synth/`, `sfx-sample/`, and `music/` are the base image plus exactly the
   **`sfx-synth`** / **`sfx-sample`** / **`music`** binary, the
-  [audio](../apps/docs/src/content/docs/testing/asset-generation/audio-binaries.md)
+  [audio](https://docs.testcabinet.ai/testing/asset-generation/audio-binaries/)
   tool a run uses to render a `.wav`, copied out of the `tool-sfx-synth`,
   `tool-sfx-sample` or `tool-music` image (see [the tool images](#the-tool-images)).
   An `sfx-sample` or `music` run reads its palette from `/opt/audio`, which is
@@ -571,7 +571,7 @@ and names the check as not made in a checkout that has not initialized `gg/`.
 ## The audio store
 
 The
-[`sfx-sample`](../apps/docs/src/content/docs/testing/asset-generation/audio-binaries.md)
+[`sfx-sample`](https://docs.testcabinet.ai/testing/asset-generation/audio-binaries/)
 tool mixes over a sample library and the `music` tool plays an instrument bank. A test
 case declares the packs it draws from in `[audio] packs`, and its run container is given
 those packs and no others.
@@ -653,9 +653,9 @@ back out of its started container, so an image that accepts a different contract
 fails the run at container start rather than part-way through a session.
 
 The staging rules and the `packs.json` shape are in
-[`components/core/execution.md`](../apps/docs/src/content/docs/components/core/execution.md),
+[`components/core/execution.md`](https://docs.testcabinet.ai/components/driver/execution/),
 and how the audio tools resolve a pack out of it is in
-[`audio-binaries.md`](../apps/docs/src/content/docs/testing/asset-generation/audio-binaries.md#the-sample-library).
+[`audio-binaries.md`](https://docs.testcabinet.ai/testing/asset-generation/audio-binaries/#the-sample-library).
 
 Adding a bank is: extend the `BANKS` registry in
 [`scripts/curate-instrument-bank.mjs`](../scripts/curate-instrument-bank.mjs),
@@ -668,7 +668,7 @@ needs no run-image rebuild.
 tooling** (`adversarial/Dockerfile` is `FROM` base-wasm, so it inherits the Node
 toolchain, the shared **Rust toolchain with the `wasm32-unknown-unknown` target**,
 the `node` run user, the `/work` working directory, and the keep-alive `CMD`). An
-[adversarial](../apps/docs/src/content/docs/testing/adversarial/overview.md) run
+[adversarial](https://docs.testcabinet.ai/testing/adversarial/overview/) run
 asks the model to write a controller in Rust; the case's `[build]` commands
 compile that controller to a wasm core module **inside this container at run
 time**, which is why base-wasm carries the Rust toolchain (installed system-wide,
@@ -709,7 +709,7 @@ workspace dependencies fails the image build.
 tooling** (`performance/Dockerfile` is `FROM` base-wasm, so it inherits the Node
 toolchain, the shared **Rust toolchain with the `wasm32-unknown-unknown` target**,
 the `node` run user, the `/work` working directory, and the keep-alive `CMD`). A
-[performance](../apps/docs/src/content/docs/testing/performance/overview.md) run
+[performance](https://docs.testcabinet.ai/testing/performance/overview/) run
 asks the model to write a factory-simulation engine in Rust; the case's `[build]`
 commands compile that engine to a wasm core module **inside this container at run
 time**, exactly as the adversarial image compiles a controller — both inherit that
@@ -779,7 +779,7 @@ sentence made mechanical.
 `--gg-selfcheck <PATH-TO-GG>` takes a `gg` binary — fetch the pinned release with
 `scripts/ci/gg-release.sh fetch <dir>`, the same static-musl binary the driver image
 bakes and copies into a run container — and, for each variant it builds, drives
-[`gg selfcheck`](../apps/docs/src/content/docs/gg/languages/selfcheck.md) inside the
+[`gg selfcheck`](https://docs.testcabinet.ai/gg/languages/selfcheck/) inside the
 image it has just built: every registered language arm's real bootstrap turn, real
 toolchain resolution, real compiler, real guest. The binary is installed the way a run
 installs it (created container, copied to `/tmp/gg`, `exec`ed as the unprivileged
@@ -947,7 +947,7 @@ zero. The calling side supplies most of that — gg runs every compiler with its
 directory, `HOME`, `TMPDIR` and `XDG_*` roots inside that preparation's own tree — so what
 this constrains is the toolchain that can _only_ be driven through a process shared
 between compilations. See [per-agent compiler
-isolation](../apps/docs/src/content/docs/gg/languages/compilation.md#per-agent-compiler-isolation).
+isolation](https://docs.testcabinet.ai/gg/languages/compilation/#per-agent-compiler-isolation).
 
 And it must be **self-contained, and proven so where it runs**. This is the same
 constraint as the first taken to its conclusion: a toolchain vendors under `/opt/gg`
@@ -957,7 +957,7 @@ proof lives. Each installer below ends by compiling with the pruned copy, and th
 runs in this **builder** stage — which `apt-get install`s the arm's own dependencies
 and then exports `/opt/gg` without them, so a pass here says nothing about the image
 the tree is copied _into_. The gate that does is
-[`gg selfcheck`](../apps/docs/src/content/docs/gg/languages/selfcheck.md), run inside
+[`gg selfcheck`](https://docs.testcabinet.ai/gg/languages/selfcheck/), run inside
 a **built** `-gg` variant of each environment — `sprite-gg`, `base-wasm-gg`, `voxel-gg`,
 `full-stack-3d-gg` and `blender-gg` — before any is published. A dependency satisfied by
 whatever the image happens to contain is not satisfied: it is an arm that works on some
@@ -1095,7 +1095,7 @@ builds each one natively per architecture, pushes `<image>:<sha>-<arch>` to
 pushed there. Runners resolve the
 published image directly from their own registry configuration; the script does
 **not** register anything with the backend, which plays no part in container
-distribution (see `../apps/docs/src/content/docs/components/core/execution.md`).
+distribution (see `https://docs.testcabinet.ai/components/driver/execution/`).
 
 Each registry round trip that writes or fetches (a push, a pull, a `docker buildx
 imagetools create`) is tried up to `REGISTRY_ATTEMPTS` times (default 4), waiting

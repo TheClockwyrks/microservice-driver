@@ -8,8 +8,8 @@
 # on `PATH`: `draw` and `draw-sheet` (sprites / sprite sheets), `particle-2d` (particle
 # systems), and the three audio tools `sfx-synth` (procedural SFX), `sfx-sample`
 # (sampled SFX), and `music` (sampled-instrument music). See the asset-generation docs
-# under `apps/docs/src/content/docs/testing/asset-generation/` for each tool and
-# `apps/docs/src/content/docs/testing/full-stack/` for how a full-stack case wires the
+# under `https://docs.testcabinet.ai/testing/asset-generation/` for each tool and
+# `https://docs.testcabinet.ai/testing/full-stack/` for how a full-stack case wires the
 # produced assets into its build. The 3D voxel/particle tooling is deliberately NOT here:
 # it lives in the sibling `full-stack-3d` image, which a case selects with
 # `asset_dimension = "3d"` (see `containers/full-stack-3d/Dockerfile`). This image stays

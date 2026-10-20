@@ -6,7 +6,7 @@
 # `texture` for seamless map painting and `pbr` for baking normal/AO maps, setting
 # uniforms, assembling `material.json`, and rendering the lit 3D preview (see the
 # asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/material-binaries.md`). Both are
+# `https://docs.testcabinet.ai/testing/asset-generation/material-binaries/`). Both are
 # built from `crates/paint` in the `tool-paint` repository. Because `pbr` renders a lit
 # 3D preview of the material on a test surface through `wgpu`, this image ships the Mesa
 # software-Vulkan runtime, like the voxel family and unlike the pure-2D `ui` image; the

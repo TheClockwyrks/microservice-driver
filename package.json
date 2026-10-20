@@ -1,0 +1,29 @@
+{
+  "name": "microservice-driver-repository",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:md": "markdownlint-cli2",
+    "spell": "cspell lint --no-progress --cache"
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "5.0.0",
+    "cspell": "10.2.2",
+    "markdownlint-cli2": "0.22.1",
+    "playwright": "1.63.0",
+    "prettier": "3.8.4",
+    "smol-toml": "1.8.0",
+    "vitest": "5.0.0"
+  }
+}

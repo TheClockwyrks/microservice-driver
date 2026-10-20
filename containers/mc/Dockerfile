@@ -6,7 +6,7 @@
 # static surface-extraction meshing tool a Marching Cubes run uses (a coarse,
 # low-poly mesher — the `MarchingCubesMesher` from tool-model-core's
 # `voxel-mesh`; see the asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/`). Animated Marching
+# `https://docs.testcabinet.ai/testing/asset-generation/`). Animated Marching
 # Cubes runs use the separate mc-animation image, which bakes in `mc-anim`
 # instead — see `containers/mc-animation/Dockerfile`.
 #

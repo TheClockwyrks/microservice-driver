@@ -1,49 +1,36 @@
-//! Integration guard: every real manifest committed to the repo must parse and
-//! resolve through the same loaders the running services use.
-//!
-//! The test-case + variant manifests are guarded separately in
-//! `committed_catalog.rs` (`every_catalog_case_and_variant_resolves`). This file
-//! covers the remaining manifest kinds so that **no** committed manifest — of any
-//! kind — can be malformed without a test failing:
+//! Integration guard: every manifest this repository embeds or reads must parse
+//! and resolve through the same loaders the running services use.
 //!
 //!   - orchestrators (`orchestrators/<slug>/…`)      via [`OrchestratorCatalog`]
-//!   - engines       (`engines/engines/<slug>/engine.toml`, the engines
-//!     submodule's)                                   via `built_in_catalog`
+//!   - engines       (`engines/<slug>/engine.toml` of the engines repository, at
+//!     the version this repository pins)            via `built_in_catalog`
 //!   - harnesses     (`harnesses/<slug>/harness.toml`) via [`DefaultHarnessRegistry`]
-//!   - test-case groups (`test-case-groups/<slug>/test-case-group.toml`)
-//!     via [`TestCaseGroupCatalog`]
 //!
-//! (Model configs no longer live on disk — they are seeded into and edited in the
-//! backend store — so there is no `models/` manifest to guard here.)
+//! The committed test cases, game jams and test-case groups are the test suites
+//! repository's, and the checks that hold the whole catalog to a rule are the
+//! backend's, which reads that catalog
+//! (<https://docs.testcabinet.ai/development/building/#tests-that-read-case-versions>).
 //!
 //! Each loader discovers or enumerates the real on-disk files, so a newly added
 //! manifest is covered automatically and a schema drift (like a required field the
-//! data no longer supplies) surfaces here rather than at ingest time in a service.
+//! data no longer supplies) surfaces here rather than at run time in a service.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+#[path = "../src/test_support.rs"]
+mod test_support;
+
 use test_cabinet_driver::engine::{BUILT_IN_SLUGS as BUILT_IN_ENGINE_SLUGS, EngineSelection};
 use test_cabinet_driver::{
     BUILT_IN_SLUGS, DefaultHarnessRegistry, HarnessRegistry, HarnessSlug, OrchestratorCatalog,
-    OrchestratorSelection, TestCaseCatalog, TestCaseGroupCatalog,
+    OrchestratorSelection,
 };
 
-/// The repository root (two levels up from this crate's `Cargo.toml`).
+/// The repository root (two levels up from this crate's `Cargo.toml`), which holds
+/// `harnesses/` and `orchestrators/`.
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-/// The directory holding the committed `test-cases/`, `game-jams/` and
-/// `test-case-groups/`: `TCAB_DEFINITIONS_ROOT` when set (the backend's name for
-/// it), otherwise the repository's `test-suites` checkout. The groups are checked
-/// against the whole catalog, so they are read where the catalog is rather than
-/// from a copy.
-fn definitions_root() -> PathBuf {
-    std::env::var_os("TCAB_DEFINITIONS_ROOT")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| repo_root().join("test-suites"))
 }
 
 /// Immediate subdirectory paths of `dir`, ignoring files and hidden entries.
@@ -100,9 +87,9 @@ fn every_orchestrator_manifest_loads() {
 fn every_engine_manifest_loads() {
     let catalog = test_cabinet_driver::engine::built_in_catalog();
 
-    // The manifests are the engines repository's, at `engines/<slug>/` of its
-    // checkout, which the superrepo holds as the `engines` submodule.
-    let on_disk: BTreeSet<String> = subdirs(&repo_root().join("engines").join("engines"))
+    // The manifests are the engines repository's, at `engines/<slug>/` of the
+    // checkout Cargo took the `test-cabinet-engines` crate from.
+    let on_disk: BTreeSet<String> = subdirs(&test_support::engines_checkout().join("engines"))
         .iter()
         .filter_map(|path| path.file_name()?.to_str().map(str::to_owned))
         .collect();
@@ -156,47 +143,4 @@ fn every_harness_manifest_parses_and_matches_the_enum() {
         on_disk, known,
         "harnesses/ directories must match HarnessSlug::ALL exactly"
     );
-}
-
-/// Every committed test-case-group manifest must load through the same catalogue
-/// the services walk, and every member slug must resolve in the test-case
-/// catalog (which covers test cases and game jams alike). The backend's ingest
-/// enforces the same membership rule against its own checkout, rejecting an
-/// invalid group at scan time; this is the repo-side gate that catches the
-/// mistake before it is committed. Discovering the directories from disk means
-/// a newly added `test-case-groups/<slug>/` is covered without touching this
-/// test.
-///
-/// Note the member list names each case's manifest-declared **slug**, not its
-/// folder: the catalog lists cases by identity (for example the `carom/`
-/// folder's case is `pong`), and the run records that back a group's
-/// leaderboard carry that identity.
-#[test]
-fn every_test_case_group_manifest_loads() {
-    let root = definitions_root();
-    let groups = TestCaseGroupCatalog::new(root.join("test-case-groups"))
-        .list()
-        .unwrap_or_else(|err| panic!("load test-case groups: {err:?}"));
-    assert!(!groups.is_empty(), "no test-case groups found");
-
-    let known: BTreeSet<String> = TestCaseCatalog::new(
-        root.join("test-cases"),
-        test_cabinet_driver::engine::built_in_catalog(),
-    )
-    .list()
-    .unwrap_or_else(|err| panic!("list the test-case catalog: {err:?}"))
-    .into_iter()
-    .map(|case| case.slug)
-    .collect();
-    for group in &groups {
-        for member in &group.cases {
-            assert!(
-                known.contains(member),
-                "test-case group `{}` names member `{member}`, which does not resolve in \
-                 the test-case catalog (member lists name a case's manifest-declared slug, \
-                 not its folder)",
-                group.slug
-            );
-        }
-    }
 }

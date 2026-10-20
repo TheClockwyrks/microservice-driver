@@ -1,0 +1,179 @@
+# The workspace of the microservice-driver repository. Every crate under crates/ is a
+# member; add a crate by adding its directory.
+[workspace]
+# The resolver of edition 2024, the monorepo's, so a crate resolves the same
+# features and the same MSRV-aware versions on both sides of an extraction.
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+version = "0.0.0"
+license = "MIT"
+repository = "https://github.com/TheClockwyrks/microservice-driver"
+# A crate of The Test Cabinet is consumed by its git source, never from
+# crates.io, so none is published; a member says `publish.workspace = true`, and
+# Cargo refuses that key when the root holds none to inherit.
+publish = false
+
+# Warnings-as-errors, baked into the manifests for every member crate that
+# opts in with `[lints] workspace = true`, so a plain `cargo build` enforces
+# the policy the clippy gate enforces on the command line.
+[workspace.lints.rust]
+warnings = "deny"
+
+[workspace.lints.clippy]
+all = "deny"
+
+# `foray-core` and `lattice-core`, from the engines repository, are `cdylib`s (each
+# compiles to `wasm32-unknown-unknown` for the browser playback ABI), so on the native
+# host rustc's incremental codegen for the otherwise unused `.so`, split across the dev
+# profile's codegen units, intermittently drops a `*.rcgu.o` object and fails the link.
+# One codegen unit removes the race. `lattice-core` is the Lattice oracle, written for
+# clarity rather than speed, so the performance validator's tests run it optimised;
+# its integer fixed-point answers are the same at either level. The engines
+# repository's own manifest carries the same pins and their full account.
+[profile.dev.package.foray-core]
+codegen-units = 1
+
+[profile.dev.package.lattice-core]
+codegen-units = 1
+opt-level = 3
+
+# Cranelift compiles wasm modules in test processes: the Foray and Lattice hosts of the
+# engines repository, which the driver links through the match runner,
+# compile each controller with wasmtime, and `cargo nextest` runs ONE PROCESS PER TEST.
+# These are the crates that compile a module and read its debug information —
+# Cranelift, wasmtime's compile path and the DWARF readers — none of them workspace
+# members, so optimising them changes no behaviour under test and makes each compile
+# cheaper; the cost is one slower first build. gg's own manifest carries the same pins
+# for its sandbox's components.
+[profile.dev.package.cranelift-codegen]
+opt-level = 3
+
+[profile.dev.package.cranelift-codegen-shared]
+opt-level = 3
+
+[profile.dev.package.cranelift-frontend]
+opt-level = 3
+
+[profile.dev.package.cranelift-entity]
+opt-level = 3
+
+[profile.dev.package.cranelift-bforest]
+opt-level = 3
+
+[profile.dev.package.cranelift-bitset]
+opt-level = 3
+
+[profile.dev.package.cranelift-control]
+opt-level = 3
+
+[profile.dev.package.cranelift-native]
+opt-level = 3
+
+[profile.dev.package.regalloc2]
+opt-level = 3
+
+[profile.dev.package.wasmparser]
+opt-level = 3
+
+[profile.dev.package.wasmtime]
+opt-level = 3
+
+[profile.dev.package.wasmtime-environ]
+opt-level = 3
+
+[profile.dev.package.wasmtime-internal-core]
+opt-level = 3
+
+[profile.dev.package.wasmtime-internal-cranelift]
+opt-level = 3
+
+[profile.dev.package.gimli]
+opt-level = 3
+
+[profile.dev.package.addr2line]
+opt-level = 3
+
+[profile.dev.package.object]
+opt-level = 3
+
+# The crates of the other repositories this one may depend on, each at its
+# public source, the GitHub mirror, and the tag its dependents pin. The
+# superrepo's .cargo/config.toml redirects every one of these to the sibling
+# checkout, so a build inside the superrepo never fetches them. A manifest
+# never names an Azure URL or a path outside the repository: the
+# dependency-edges gate refuses both.
+[workspace.dependencies]
+test-cabinet-contracts = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
+test-cabinet-suites = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
+test-cabinet-telemetry = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
+test-cabinet-redact = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
+test-cabinet-backend-client = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
+# The engine catalog, the match runner, and the Foray and Lattice rules the
+# validators record a match or a case's state in.
+test-cabinet-engines = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2" }
+test-cabinet-match-play = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2" }
+foray-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2" }
+lattice-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2", default-features = false }
+# The tool crates the driver regenerates or reads a run's scored output through,
+# each the library alone (not the `cli` feature's binaries). tool-sprite and
+# tool-voxel carry no tag the dependents pin, so they are named at `master`.
+test-cabinet-draw = { git = "https://github.com/TheClockwyrks/tool-sprite", branch = "master", default-features = false }
+test-cabinet-voxel = { git = "https://github.com/TheClockwyrks/tool-voxel", branch = "master", default-features = false }
+test-cabinet-model-core = { git = "https://github.com/TheClockwyrks/tool-model-core", tag = "v0.1.1", default-features = false }
+test-cabinet-voxel-mesh = { git = "https://github.com/TheClockwyrks/tool-model-core", tag = "v0.1.1", default-features = false }
+# The audio staging contract. The driver's tests enable its `cli` feature to read
+# the staged tree back.
+test-cabinet-audio-core = { git = "https://github.com/TheClockwyrks/tool-audio-core", tag = "v0.1.1", default-features = false }
+
+# The third-party crates the driver shares with its peers, at the requirements
+# the superrepo holds the same crates to, so the driver resolves the versions
+# they do.
+anstream = "1"
+anstyle = "1"
+anyhow = "1"
+async-trait = "0.1"
+axum = "0.8"
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+cuid2 = "0.1"
+dotenvy = "0.15"
+# Gzip framing for the run-tree analysis documents. Default features keep the
+# pure-Rust `miniz_oxide` backend, so no system zlib.
+flate2 = "1"
+futures-util = "0.3"
+hex = "0.4"
+# The TypeScript/JSX front end the analyzer parses a produced source tree with.
+# Pinned to the 0.141 line the analyzer is written against: oxc's parser and AST
+# move between minor releases, and a silent bump would change what it reports.
+oxc = { version = "0.141" }
+png = "0.17"
+# TLS through rustls so the binaries need no system OpenSSL; `json` for the
+# bodies, `stream` to upload a run tree off disk a chunk at a time.
+reqwest = { version = "0.12", default-features = false, features = [
+	"json",
+	"rustls-tls",
+	"stream",
+] }
+semver = { version = "1", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+thiserror = "2"
+time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
+tokio = { version = "1", features = ["full"] }
+# `io` carries `ReaderStream`, which turns the finished tarball file into the
+# upload body's stream.
+tokio-util = { version = "0.7", features = ["io"] }
+toml = "0.8"
+tracing = "0.1"
+which = "8"
+
+# Line tables alone as the debug info of a development build, which the test
+# profile inherits, as in the superrepo: a panic keeps its files and lines, and
+# the compiler and linker hold less memory and write a smaller target directory.
+[profile.dev]
+debug = "line-tables-only"

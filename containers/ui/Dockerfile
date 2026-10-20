@@ -5,7 +5,7 @@
 # binaries, the two tools a UI run interleaves over a shared workspace — `paint` for
 # layered raster work and `ui` for crisp vector shapes, text, and nine-slice (see the
 # asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/ui-binaries.md`). Both are
+# `https://docs.testcabinet.ai/testing/asset-generation/ui-binaries/`). Both are
 # built from `crates/paint` in the `tool-paint` repository. The UI tools do only 2D
 # raster compositing, so — like the sprite image and unlike the voxel family — this
 # image needs no Mesa/Vulkan runtime.

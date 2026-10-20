@@ -8,7 +8,7 @@
 #   - the **end-to-end** run image itself — end-to-end runs resolve THIS image (see
 #     `harness::resolve_run_image`), so any end-to-end (or full-stack) case may
 #     author its core simulation in Rust and ship it as a committed wasm build
-#     input (see `apps/docs/src/content/docs/testing/full-stack/`);
+#     input (see `https://docs.testcabinet.ai/testing/full-stack/`);
 #   - the **full-stack-2d** image (`containers/full-stack-2d/Dockerfile`), which
 #     adds the six 2D asset-generation binaries and the audio packs on top;
 #   - the **full-stack-3d** image (`containers/full-stack-3d/Dockerfile`), its

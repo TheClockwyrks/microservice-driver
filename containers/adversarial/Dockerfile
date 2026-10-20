@@ -6,7 +6,7 @@
 # controller compiles to a wasm core module with *in-container* during the run — plus,
 # like the asset-generation images, The Test Cabinet's own tooling baked in: here the
 # Foray toolchain a model develops a controller with (see the adversarial docs under
-# `apps/docs/src/content/docs/testing/adversarial/`):
+# `https://docs.testcabinet.ai/testing/adversarial/`):
 #
 #   - the **`foray` CLI** (`/usr/local/bin/foray`), the binary a model runs its
 #     controller through to play local matches against the baselines — the same

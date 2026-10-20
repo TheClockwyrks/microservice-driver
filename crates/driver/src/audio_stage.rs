@@ -40,7 +40,7 @@
 //! seeded repository, so nothing staging writes is under the model's working tree, in
 //! its git history, or in the tree collected as the run's result.
 //!
-//! See `apps/docs/src/content/docs/components/core/execution.md`.
+//! See `https://docs.testcabinet.ai/components/driver/execution/`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

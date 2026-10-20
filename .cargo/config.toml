@@ -1,0 +1,38 @@
+# Cargo fetches a git dependency through the git on PATH rather than its own
+# client, so a fetch honors the user's git configuration: the SSH agent, and
+# the URL rewrites that send a fetch of a GitHub mirror of a repository of The
+# Test Cabinet to Azure DevOps while the mirrors are private (the superrepo's
+# scripts/repos/sources.py rewrites, and scripts/ci/git-sources.sh in a
+# pipeline).
+[net]
+git-fetch-with-cli = true
+
+# rustdoc documents the private items too, so the `rust-doc` gate holds every
+# doc comment's links, not the public ones alone. The superrepo's
+# .cargo/config.toml sets the same flag, and Cargo reads it as an ancestor
+# configuration inside the superrepo, so a gate run there and the pipeline,
+# which builds this repository on its own, judge the same documentation. There
+# Cargo joins the two lists, and rustdoc takes the repeated flag as one. A
+# `RUSTDOCFLAGS` in the environment, even an empty one, takes precedence.
+[build]
+rustdocflags = ["--document-private-items"]
+
+# The portable, fully static builds of the two binaries this repository ships,
+# pinned to x86_64-unknown-linux-musl and written to
+# target/x86_64-unknown-linux-musl/release/ (see
+# https://docs.testcabinet.ai/development/building/#portable-static-builds). A
+# static binary has no dynamic linker, so it runs on distributions without the
+# generic FHS loader, NixOS among them. The `ring` TLS backend compiles a little
+# C, so the build needs `rustup target add x86_64-unknown-linux-musl` and a musl
+# C toolchain on PATH (`musl-gcc`, Debian's `musl-tools`); an aarch64 host
+# cross-compiles and needs an x86_64 musl cross toolchain for it.
+#
+#   cargo build-portable          # -> target/x86_64-unknown-linux-musl/release/tcab
+#   cargo build-portable-driver   # -> target/x86_64-unknown-linux-musl/release/tcab-driver
+#
+# Under its `cli` runtime `tcab-driver` drives a run by shelling out to a
+# container runtime, so the host it runs on still needs Podman or Docker on
+# PATH; under the `kubernetes` runtime it talks to the API and needs neither.
+[alias]
+build-portable = "build -p test-cabinet-driver --bin tcab --release --target x86_64-unknown-linux-musl"
+build-portable-driver = "build -p test-cabinet-driver --bin tcab-driver --release --target x86_64-unknown-linux-musl"

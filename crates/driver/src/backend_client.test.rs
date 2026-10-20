@@ -342,9 +342,7 @@ async fn materialize_writes_adversarial_opponent_wasm_to_disk() {
 
 /// The fixture suites checkout: one complete suite, `carom/versions/v1.0.0/`.
 fn fixture_suites_root() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(crate::test_support::CONTRACT_FIXTURES)
-        .join("test-suite")
+    crate::test_support::contract_fixtures().join("test-suite")
 }
 
 /// Every file of the fixture suite version the store would list on

@@ -4,7 +4,7 @@
 # this one image. It is the base run-container image plus the baked-in `sn-skin` binary,
 # the tool a skinned run uses to sculpt one continuous body field, bind it to a
 # model-invented skeleton, and animate it as a deforming skin (see the asset-generation
-# docs under `apps/docs/src/content/docs/testing/asset-generation/skinned-binaries.md`).
+# docs under `https://docs.testcabinet.ai/testing/asset-generation/skinned-binaries/`).
 # Its preview `render` draws the skinned mesh through `wgpu`, so this image ships the
 # Mesa software-Vulkan runtime, like the rest of the voxel family. The Marching Cubes /
 # Dual Contouring siblings are the `mc-skinned` / `dc-skinned` images.

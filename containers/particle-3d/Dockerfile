@@ -4,7 +4,7 @@
 # this one image. It is the base run-container image plus the baked-in `particle-3d`
 # binary, the tool a 3D particle run authors its emitter system with (see the
 # asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/particle-binaries.md`), built
+# `https://docs.testcabinet.ai/testing/asset-generation/particle-binaries/`), built
 # from `crates/particle-3d` in the `tool-particle` repository. Its preview `render`
 # billboards each live particle through `wgpu` from an orbit camera, so this image
 # ships the Mesa software-Vulkan runtime, like the rest of the voxel family and unlike

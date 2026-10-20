@@ -4,7 +4,7 @@
 # one runs a single harness session and drives it to completion, reproducing the
 # original single-session behaviour exactly. See `orchestrators/README.md` and
 # the design doc at
-# `apps/docs/src/content/docs/components/core/orchestrators.md`.
+# `https://docs.testcabinet.ai/components/driver/orchestrators/`.
 
 # Stable slug, used throughout run records and the site. Must match the folder
 # name (for a built-in) and is authoritative for an external directory.

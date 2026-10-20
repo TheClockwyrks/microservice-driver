@@ -1277,7 +1277,7 @@ gg_selfcheck() {
 		echo "ERROR: gg selfcheck FAILED in ${image} (exit ${status}); ${name} is NOT publishable." >&2
 		echo "       The per-arm report above says which arm and whose defect it is. An arm that" >&2
 		echo "       compiles on a developer machine and dies here is the toolchain failing to carry" >&2
-		echo "       something the image does not supply — see apps/docs/src/content/docs/gg/languages/" >&2
+		echo "       something the image does not supply — see https://docs.testcabinet.ai/gg/languages/" >&2
 		echo "       compilation.md#self-contained-toolchains." >&2
 		exit 1
 	fi

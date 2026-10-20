@@ -5,8 +5,9 @@
 //! catalog lives, and seed a fresh repository from them, asserting the seeding
 //! contract: the selected variant's specs and the rendered reference images are
 //! present, the reference *source* is withheld, and the repository has a single
-//! initial commit. The checks that hold every committed version to a rule are in
-//! `committed_catalog.rs`.
+//! initial commit. The checks that hold every committed version to a rule are the
+//! backend's, which reads the whole catalog
+//! (<https://docs.testcabinet.ai/development/building/#tests-that-read-case-versions>).
 
 use std::path::{Path, PathBuf};
 

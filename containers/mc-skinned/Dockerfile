@@ -5,7 +5,7 @@
 # binary, the tool a skinned run uses to sculpt one continuous body field, bind it to a
 # model-invented skeleton, and animate it as a deforming skin (see the asset-generation
 # docs under
-# `apps/docs/src/content/docs/testing/asset-generation/skinned-binaries.md`). Its
+# `https://docs.testcabinet.ai/testing/asset-generation/skinned-binaries/`). Its
 # preview `render` draws the skinned mesh through `wgpu`, so this image ships the Mesa
 # software-Vulkan runtime, like the rest of the voxel family. The Surface Nets / Dual
 # Contouring siblings are the `sn-skinned` / `dc-skinned` images.

@@ -4,7 +4,7 @@
 # in this one image. It is the base run-container image plus the baked-in `sfx-synth`
 # binary, the tool a synthesis run builds a sound from oscillators and noise with (see
 # the asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/audio-binaries.md`). The audio
+# `https://docs.testcabinet.ai/testing/asset-generation/audio-binaries/`). The audio
 # tools render a `.wav` and a waveform/spectrogram PNG on the CPU, so — like the
 # sprite image and unlike the voxel family — this image needs no Mesa/Vulkan runtime.
 #

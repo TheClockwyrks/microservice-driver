@@ -95,7 +95,7 @@ RUN apt-get update \
 # `/opt/audio` is the staged-audio root, created here and given to the run user
 # because it is written INTO A STARTED CONTAINER: a run is staged with the packs its
 # test case declares in `[audio] packs` (see
-# `apps/docs/src/content/docs/components/core/execution.md`), and the Kubernetes
+# `https://docs.testcabinet.ai/components/driver/execution/`), and the Kubernetes
 # runtime extracts that tree through an `exec` as the pod's user, which is this
 # image's `node`. No image carries a pack of its own, so the directory ships empty
 # except for its marker.

@@ -460,9 +460,7 @@ fn the_analysis_executes_nothing_it_measures() {
 /// `TCAB_WRITE_CODE_ANALYSIS_FIXTURE=1` to rewrite it after a deliberate change.
 #[test]
 fn the_contract_code_analysis_fixture_is_this_analyzers_output() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(crate::test_support::CONTRACT_FIXTURES)
-        .join("code-analysis/summary.json");
+    let fixture = crate::test_support::contract_fixtures().join("code-analysis/summary.json");
     let root = tree(&[(
         "src/main.ts",
         "export function boot(): number {\n  return 1;\n}\n",

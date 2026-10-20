@@ -4,7 +4,7 @@
 # executes in this one image. It is the base run-container image plus exactly one
 # addition: the baked-in `draw` binary, the drawing tool a single-sprite run uses
 # (see the asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/`). Sprite-sheet runs use
+# `https://docs.testcabinet.ai/testing/asset-generation/`). Sprite-sheet runs use
 # the separate sprite-sheet image, which bakes in `draw-sheet` instead — see
 # `containers/sprite-sheet/Dockerfile`.
 #

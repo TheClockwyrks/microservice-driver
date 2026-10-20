@@ -4,7 +4,7 @@
 # "voxel-animation"`) executes in this one image. It is the base run-container
 # image plus exactly one addition: the baked-in `voxel-anim` binary, the rigged 3D
 # voxel-modeling tool an animated voxel run uses (see the asset-generation docs
-# under `apps/docs/src/content/docs/testing/asset-generation/`). Static voxel runs
+# under `https://docs.testcabinet.ai/testing/asset-generation/`). Static voxel runs
 # use the separate voxel image, which bakes in `voxel` instead — see
 # `containers/voxel/Dockerfile`.
 #

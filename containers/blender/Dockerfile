@@ -6,7 +6,7 @@
 # `tcab-blend` runner — the tool a Blender run uses to build its asset by writing a
 # `build.py` (a `bpy` script) and exporting a standard native glTF (see the
 # asset-generation docs under
-# `apps/docs/src/content/docs/testing/asset-generation/blender-binaries.md`).
+# `https://docs.testcabinet.ai/testing/asset-generation/blender-binaries/`).
 #
 # UNLIKE EVERY OTHER RUN IMAGE, this one is NOT built `FROM` the shared base image. The
 # reason is Blender itself. Blender ships **official Linux builds for x86-64 only**

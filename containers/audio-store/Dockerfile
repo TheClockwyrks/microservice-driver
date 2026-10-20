@@ -19,7 +19,7 @@
 # `scripts/ci/manifest.sh`).
 #
 # The tree is what `crates/driver`'s `audio_stage` reads (see that module and
-# `apps/docs/src/content/docs/components/core/execution.md`):
+# `https://docs.testcabinet.ai/components/driver/execution/`):
 #
 #   /opt/tcab-audio/
 #     objects.lock.json                     every published object, by digest and length

@@ -26,7 +26,7 @@ pointing a run at a directory with the same shape (`--orchestrator-dir <path>`);
 see the design doc.
 
 The authoritative design lives at
-[`components/core/orchestrators.md`](../apps/docs/src/content/docs/components/core/orchestrators.md).
+[`components/core/orchestrators.md`](https://docs.testcabinet.ai/components/driver/orchestrators/).
 
 ## Manifest
 

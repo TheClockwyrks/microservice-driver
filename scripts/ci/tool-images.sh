@@ -155,7 +155,7 @@ lock() {
 		if [[ "$(wc -l <<<"$locked")" -ne 1 ]]; then
 			failed=1
 			echo "tool-images.sh: ${LOCK_FILE} resolves ${repository} to more than one commit:" >&2
-			sed 's/^/       /' <<<"$locked" >&2
+			printf '       %s\n' "${locked//$'\n'/$'\n'       }" >&2
 			continue
 		fi
 		if [[ "$locked" != "$commit" ]]; then

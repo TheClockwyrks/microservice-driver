@@ -620,10 +620,13 @@ so a local `make images` pulls no audio at all.
 Core stages a run's declared packs out of the store and materializes them at
 `/opt/audio` when the container starts, before the harness runs:
 
-``` /opt/audio/ .tcab-audio-contract                  baked by the base image; the
-staging contract version packs.json                            the packs this run was
-given, and its per-kind defaults packs/<name>@<version>/pack.toml      one per declared
-pack clips/<clip-id>.<profile-id>.wav      the union of those packs' clips ```
+```
+/opt/audio/
+  .tcab-audio-contract                  baked by the base image; the staging contract version
+  packs.json                            the packs this run was given, and its per-kind defaults
+  packs/<name>@<version>/pack.toml      one per declared pack
+  clips/<clip-id>.<profile-id>.wav      the union of those packs' clips
+```
 
 The store and the container share one layout, so a `pack.toml` is byte-copied and
 its relative `file` entries resolve unchanged. Nothing lands under `/work`: only

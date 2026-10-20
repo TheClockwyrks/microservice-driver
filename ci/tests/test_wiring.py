@@ -70,7 +70,7 @@ PIPELINE_ONLY |= set(KIND_PIPELINE_ONLY.split())
 # drives a browser, the gate holding the workspace's Playwright to the image,
 # which needs the workspace installed; and the gates the repository writes
 # itself, each given a step by the kit's render.
-REPOSITORY_PIPELINE_ONLY = "playwright-image"
+REPOSITORY_PIPELINE_ONLY = "playwright-image scripts-test containers-test"
 PIPELINE_ONLY |= set(REPOSITORY_PIPELINE_ONLY.split())
 
 # The gate tracks, and the image each runs in. The Rust track is a property of

@@ -386,6 +386,12 @@ stages:
               testResultsFiles: $(Build.SourcesDirectory)/target/gate-artifacts/typescript/junit.xml
               testRunTitle: TypeScript tests
               failTaskOnMissingResultsFile: false
+          - script: uv run --quiet --project ci gate run scripts-test
+            displayName: scripts-test (this repository's own gate)
+            condition: eq(variables['checksReady'], 'true')
+          - script: uv run --quiet --project ci gate run containers-test
+            displayName: containers-test (this repository's own gate)
+            condition: eq(variables['checksReady'], 'true')
 
       # This repository's own jobs in the gates stage.
       - template: .azure/project/jobs.yml

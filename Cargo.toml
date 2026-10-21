@@ -106,27 +106,27 @@ opt-level = 3
 # never names an Azure URL or a path outside the repository: the
 # dependency-edges gate refuses both.
 [workspace.dependencies]
-test-cabinet-contracts = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
-test-cabinet-suites = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
-test-cabinet-telemetry = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
-test-cabinet-redact = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
-test-cabinet-backend-client = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.3" }
+test-cabinet-contracts = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.4" }
+test-cabinet-suites = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.4" }
+test-cabinet-telemetry = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.4" }
+test-cabinet-redact = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.4" }
+test-cabinet-backend-client = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.4" }
 # The engine catalog, the match runner, and the Foray and Lattice rules the
 # validators record a match or a case's state in.
-test-cabinet-engines = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2" }
-test-cabinet-match-play = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2" }
-foray-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2" }
-lattice-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.2", default-features = false }
+test-cabinet-engines = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3" }
+test-cabinet-match-play = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3" }
+foray-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3" }
+lattice-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3", default-features = false }
 # The tool crates the driver regenerates or reads a run's scored output through,
 # each the library alone (not the `cli` feature's binaries). tool-sprite and
 # tool-voxel carry no tag the dependents pin, so they are named at `master`.
 test-cabinet-draw = { git = "https://github.com/TheClockwyrks/tool-sprite", branch = "master", default-features = false }
 test-cabinet-voxel = { git = "https://github.com/TheClockwyrks/tool-voxel", branch = "master", default-features = false }
-test-cabinet-model-core = { git = "https://github.com/TheClockwyrks/tool-model-core", tag = "v0.1.1", default-features = false }
-test-cabinet-voxel-mesh = { git = "https://github.com/TheClockwyrks/tool-model-core", tag = "v0.1.1", default-features = false }
+test-cabinet-model-core = { git = "https://github.com/TheClockwyrks/tool-model-core", tag = "v0.1.2", default-features = false }
+test-cabinet-voxel-mesh = { git = "https://github.com/TheClockwyrks/tool-model-core", tag = "v0.1.2", default-features = false }
 # The audio staging contract. The driver's tests enable its `cli` feature to read
 # the staged tree back.
-test-cabinet-audio-core = { git = "https://github.com/TheClockwyrks/tool-audio-core", tag = "v0.1.1", default-features = false }
+test-cabinet-audio-core = { git = "https://github.com/TheClockwyrks/tool-audio-core", tag = "v0.1.2", default-features = false }
 
 # The third-party crates the driver shares with its peers, at the requirements
 # the superrepo holds the same crates to, so the driver resolves the versions

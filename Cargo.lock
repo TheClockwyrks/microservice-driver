@@ -961,6 +961,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 [[package]]
 name = "foray-core"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/engines?tag=v1.1.3#6d5f8dd4fd7ab3058515bcb8659ec7944f65c31c"
 dependencies = [
  "schemars",
  "serde",
@@ -971,6 +972,7 @@ dependencies = [
 [[package]]
 name = "foray-host"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/engines?tag=v1.1.3#6d5f8dd4fd7ab3058515bcb8659ec7944f65c31c"
 dependencies = [
  "foray-core",
  "serde_json",
@@ -1745,6 +1747,7 @@ dependencies = [
 [[package]]
 name = "lattice-core"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/engines?tag=v1.1.3#6d5f8dd4fd7ab3058515bcb8659ec7944f65c31c"
 dependencies = [
  "schemars",
  "serde",
@@ -1754,6 +1757,7 @@ dependencies = [
 [[package]]
 name = "lattice-host"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/engines?tag=v1.1.3#6d5f8dd4fd7ab3058515bcb8659ec7944f65c31c"
 dependencies = [
  "lattice-core",
  "serde_json",
@@ -3520,6 +3524,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-audio-core"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-audio-core?tag=v0.1.2#2d662a6b71d1545988830095ec749a5adba211ea"
 dependencies = [
  "clap",
  "png",
@@ -3531,6 +3536,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-backend-client"
 version = "0.2.4"
+source = "git+https://github.com/TheClockwyrks/contracts?tag=v0.2.4#fbb92ed74fb31231bde2c3de31cde2413a640b2d"
 dependencies = [
  "async-trait",
  "http",
@@ -3546,6 +3552,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-contracts"
 version = "0.2.4"
+source = "git+https://github.com/TheClockwyrks/contracts?tag=v0.2.4#fbb92ed74fb31231bde2c3de31cde2413a640b2d"
 dependencies = [
  "hex",
  "percent-encoding",
@@ -3561,6 +3568,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-draw"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-sprite?branch=master#f1df7e2c216eb5d41f2eefb8a9d83aee4ebbdc88"
 dependencies = [
  "png",
  "serde",
@@ -3624,6 +3632,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-engines"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/engines?tag=v1.1.3#6d5f8dd4fd7ab3058515bcb8659ec7944f65c31c"
 dependencies = [
  "test-cabinet-suites",
 ]
@@ -3631,6 +3640,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-match-play"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/engines?tag=v1.1.3#6d5f8dd4fd7ab3058515bcb8659ec7944f65c31c"
 dependencies = [
  "foray-core",
  "foray-host",
@@ -3644,6 +3654,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-model-core"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-model-core?tag=v0.1.2#3239506e022f1cf6530d41b6d2dd9a9a2fb547d8"
 dependencies = [
  "serde",
  "serde_json",
@@ -3653,6 +3664,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-redact"
 version = "0.2.4"
+source = "git+https://github.com/TheClockwyrks/contracts?tag=v0.2.4#fbb92ed74fb31231bde2c3de31cde2413a640b2d"
 dependencies = [
  "serde_json",
  "test-cabinet-contracts",
@@ -3661,6 +3673,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-suites"
 version = "0.2.4"
+source = "git+https://github.com/TheClockwyrks/contracts?tag=v0.2.4#fbb92ed74fb31231bde2c3de31cde2413a640b2d"
 dependencies = [
  "cuid2",
  "handlebars",
@@ -3680,6 +3693,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-telemetry"
 version = "0.2.4"
+source = "git+https://github.com/TheClockwyrks/contracts?tag=v0.2.4#fbb92ed74fb31231bde2c3de31cde2413a640b2d"
 dependencies = [
  "anyhow",
  "http",
@@ -3697,6 +3711,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-voxel"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-voxel?branch=master#cbfe82b2bbd33d9b5fc449e9073655548a540428"
 dependencies = [
  "serde",
  "test-cabinet-model-core",
@@ -3705,6 +3720,7 @@ dependencies = [
 [[package]]
 name = "test-cabinet-voxel-mesh"
 version = "0.0.0"
+source = "git+https://github.com/TheClockwyrks/tool-model-core?tag=v0.1.2#3239506e022f1cf6530d41b6d2dd9a9a2fb547d8"
 dependencies = [
  "serde",
  "test-cabinet-model-core",
@@ -4862,147 +4878,3 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
-
-[[patch.unused]]
-name = "test-cabinet-voxel-anim"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-artifacts"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-model-skin"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-ui-common"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-sfx-synth"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "foray-cli"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "foray-controller-sdk"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "foray-fuel-probe"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "foray-ref-border-soldier"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "foray-ref-greedy-raider"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "foray-ref-random"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "lattice-cli"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "lattice-ref-naive"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "lattice-ref-transport"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "lattice-sdk"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-particle-2d"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-particle-3d"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-particle-core"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-gg"
-version = "0.7.1"
-
-[[patch.unused]]
-name = "test-cabinet-arena"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-sn"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-sn-anim"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-sn-skin"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-repos"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-music"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "api-codegen"
-version = "0.2.4"
-
-[[patch.unused]]
-name = "contract-codegen"
-version = "0.2.4"
-
-[[patch.unused]]
-name = "test-cabinet-mc"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-mc-anim"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-mc-skin"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-sfx-sample"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-dc"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-dc-anim"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-dc-skin"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-dispatcher"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "test-cabinet-paint"
-version = "0.0.0"

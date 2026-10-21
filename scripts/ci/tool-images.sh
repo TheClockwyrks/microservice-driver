@@ -134,10 +134,35 @@ check() {
 	return "$failed"
 }
 
-# The commits Cargo.lock resolves a repository's crates to, one per line, deduplicated.
+# The lock `lock` reads, as a path. Inside the superrepo, cargo rewrites this checkout's
+# Cargo.lock to the sibling checkouts the superrepo's patch table names, which leaves no
+# source of the project's repositories in the file, and that copy is never committed
+# (see "The record of what builds together" at
+# https://docs.testcabinet.ai/development/repositories/#the-record-of-what-builds-together).
+# A working copy naming none of ${SOURCE_BASE}'s sources is that rewrite, and the record
+# is then the lock this checkout's HEAD commits; outside a git checkout of its own the
+# working copy is read as it is.
+lock_path() {
+	if grep -qE "^source = \"git\\+${SOURCE_BASE}/" "$LOCK_FILE"; then
+		echo "$LOCK_FILE"
+		return
+	fi
+	local toplevel committed copy
+	toplevel="$(git rev-parse --show-toplevel 2>/dev/null)" || toplevel=""
+	if [[ "$toplevel" == "$(pwd -P)" ]] && committed="$(git show "HEAD:./${LOCK_FILE}" 2>/dev/null)"; then
+		copy="$(mktemp)"
+		printf '%s\n' "$committed" >"$copy"
+		echo "$copy"
+		return
+	fi
+	echo "$LOCK_FILE"
+}
+
+# The commits the lock at <path> resolves a repository's crates to, one per line,
+# deduplicated.
 locked_commits() {
-	local repository="$1"
-	grep -oE "^source = \"git\\+${SOURCE_BASE}/${repository}(\\.git)?\\?[^#\"]*#[0-9a-f]{40}\"$" "$LOCK_FILE" \
+	local repository="$1" path="$2"
+	grep -oE "^source = \"git\\+${SOURCE_BASE}/${repository}(\\.git)?\\?[^#\"]*#[0-9a-f]{40}\"$" "$path" \
 		| sed -E 's/.*#([0-9a-f]{40})"$/\1/' | sort -u || true
 }
 
@@ -148,8 +173,15 @@ lock() {
 		return 1
 	fi
 	lines="$(pins)" || return 1
+	local path
+	path="$(lock_path)"
+	if [[ "$path" != "$LOCK_FILE" ]]; then
+		# shellcheck disable=SC2064 # the path is fixed now, and removed on the way out
+		trap "rm -f '${path}'" EXIT
+		echo "${LOCK_FILE} names no source of ${SOURCE_BASE}, as cargo rewrites it inside the superrepo: reading the committed ${LOCK_FILE}"
+	fi
 	while read -r repository commit; do
-		locked="$(locked_commits "$repository")"
+		locked="$(locked_commits "$repository" "$path")"
 		[[ -n "$locked" ]] || continue
 		compared=$((compared + 1))
 		if [[ "$(wc -l <<<"$locked")" -ne 1 ]]; then

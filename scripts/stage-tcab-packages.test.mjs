@@ -114,8 +114,24 @@ test("no seeded manifest names what a model must not learn", () => {
   }
 });
 
+// The lock that records what the driver builds with. Inside the superrepo cargo
+// rewrites this checkout's Cargo.lock to the sibling checkouts the superrepo's patch
+// table names, which leaves no source of the project's repositories in it, and that
+// copy is never committed (the Repositories development page, "The record of what
+// builds together"); the record is then the lock HEAD commits.
+function recordedLock() {
+  const working = readFileSync(join(repoRoot, "Cargo.lock"), "utf8");
+  if (/^source = "git\+https:\/\/github\.com\/TheClockwyrks\//m.test(working)) {
+    return working;
+  }
+  return execFileSync("git", ["show", "HEAD:./Cargo.lock"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+}
+
 test("the workspace depends on each shippable package at the pinned engines tag", () => {
-  const lock = readFileSync(join(repoRoot, "Cargo.lock"), "utf8");
+  const lock = recordedLock();
   const tags = new Set(
     [
       ...lock.matchAll(

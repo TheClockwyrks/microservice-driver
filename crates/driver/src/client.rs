@@ -4,9 +4,10 @@
 //! backend's `api/jobs.rs`). It does not enqueue or claim — the console and the
 //! dispatcher do — it only *streams its one job's progress back*: a `running`
 //! status when execution begins, batches of harness events and individual asset
-//! preview frames as they are produced, and a terminal `succeeded`/`failed`
-//! status carrying the produced record. Every call presents the per-job bearer
-//! token the dispatcher passed in.
+//! preview frames as they are produced, a `validating` status once the harness
+//! session has ended, and a terminal `succeeded`/`failed` status carrying the
+//! produced record. Every call presents the per-job bearer token the dispatcher
+//! passed in.
 //!
 //! The terminal record is handed back *with* the status: the backend persists it
 //! with the events it stored from the numbered batches [`JobClient::post_events`]
@@ -173,6 +174,24 @@ impl JobClient {
             "status (running)",
             &StatusUpdate {
                 state: DriverState::Running,
+                record: None,
+                detail: None,
+                artifacts_stored: None,
+                store_fault: None,
+            },
+        )
+        .await
+    }
+
+    /// Report that the harness session has ended and the driver has moved on to the
+    /// post-session work: collecting the tree, the post-run analysis, the case's
+    /// toolchain, validation and the upload (`POST /jobs/{id}/status`,
+    /// `validating`).
+    pub async fn post_status_validating(&self) -> Result<(), ClientError> {
+        self.post_status(
+            "status (validating)",
+            &StatusUpdate {
+                state: DriverState::Validating,
                 record: None,
                 detail: None,
                 artifacts_stored: None,

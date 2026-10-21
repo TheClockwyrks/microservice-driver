@@ -31,6 +31,14 @@
 //! Preview frames travel outside the sequence: each is posted once, best-effort,
 //! after the events queued before it, and never stored.
 //!
+//! The engine's announcement that the harness session has ended
+//! ([`EventSink::session_ended`](crate::EventSink::session_ended)) rides the same
+//! channel, so the relay reports the job `validating` only after every event the
+//! session produced has been delivered: a console never shows a run validating
+//! while the session's last events are still arriving. The report is made once,
+//! best-effort, like a preview; a lost one only leaves the run reading `running`
+//! until the held report moves it on.
+//!
 //! The relay runs for the whole run and is **awaited after the sinks are
 //! dropped** (which closes the channel): only then is every batch settled, so a
 //! terminal status sent after it finds the stored stream complete. A path that
@@ -86,15 +94,19 @@ impl Default for BatchLimit {
 /// keys, the widest sequence number and the array's brackets.
 const BATCH_ENVELOPE_BYTES: usize = r#"{"sequence":18446744073709551615,"events":[]}"#.len();
 
-/// One item handed to the relay: a harness event or an asset-preview frame. They
-/// share one channel so the relay drains them in production order, then splits
-/// them (events batched, previews individual) when it posts.
+/// One item handed to the relay: a harness event, an asset-preview frame, or the
+/// end of the harness session. They share one channel so the relay drains them in
+/// production order, then splits them (events batched, previews individual, the
+/// session's end as a status report) when it posts.
 #[derive(Debug, Clone)]
 pub enum Outbound {
     /// A normalized harness event, to be numbered and batched.
     Event(HarnessEvent),
     /// A live asset-generation preview frame, posted individually.
     Preview(AssetPreview),
+    /// The harness session has ended. The relay delivers every event queued
+    /// before it, then reports the job `validating`.
+    SessionEnded,
 }
 
 /// How a relay's events fared.
@@ -277,6 +289,12 @@ impl crate::EventSink for BackendEventSink {
             cell.set(stage);
         }
     }
+
+    fn session_ended(&mut self) {
+        // Queued behind every event the session emitted, so the relay delivers
+        // them all before it reports the job `validating`.
+        let _ = self.tx.send(Outbound::SessionEnded);
+    }
 }
 
 /// A [`PreviewSink`](crate::PreviewSink) that forwards each live
@@ -307,7 +325,8 @@ impl crate::PreviewSink for BackendPreviewSink {
 /// else already queued (`try_recv`), so a burst of events coalesces into one
 /// batch rather than a request per event. A preview flushes the events queued
 /// before it, so order is kept, and is then posted once; a failed preview is
-/// logged and dropped. The events drained are posted in batches no larger than
+/// logged and dropped. The end of the session does the same with the job's
+/// `validating` report. The events drained are posted in batches no larger than
 /// [`BatchLimit::DEFAULT`], each delivered under `policy`, the driver's report
 /// wait, as the module documentation describes. The channel closes when every
 /// [`RelaySender`] drops; the task then flushes any final batch and returns.
@@ -345,6 +364,12 @@ pub async fn relay_task_with_limit(
                     relay.deliver(std::mem::take(&mut pending)).await;
                     if let Err(err) = relay.client.post_preview(&preview).await {
                         tracing::warn!(error = %err, "relaying preview frame to the backend failed");
+                    }
+                }
+                Some(Outbound::SessionEnded) => {
+                    relay.deliver(std::mem::take(&mut pending)).await;
+                    if let Err(err) = relay.client.post_status_validating().await {
+                        tracing::warn!(error = %err, "could not report `validating` to the backend; continuing");
                     }
                 }
                 None => {}

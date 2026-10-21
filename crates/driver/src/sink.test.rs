@@ -63,7 +63,7 @@ async fn stub_backend() -> (String, Log) {
     scripted_backend("events", Vec::new()).await
 }
 
-/// A stub backend whose answers to posts of `kind` (`events` or `preview`) are
+/// A stub backend whose answers to posts of `kind` (`events`, `preview` or `status`) are
 /// `statuses`, in order, then `204` for every later one; every other post is
 /// answered `204`.
 async fn scripted_backend(kind: &'static str, statuses: Vec<u16>) -> (String, Log) {
@@ -529,4 +529,66 @@ async fn a_batch_is_closed_before_it_would_pass_the_byte_limit() {
             limit.bytes
         );
     }
+}
+
+#[tokio::test]
+async fn the_end_of_the_session_is_reported_as_validating_after_every_event_before_it() {
+    let (base, received) = stub_backend().await;
+    let client = Arc::new(JobClient::new(base, "job-4", "tok"));
+
+    let (tx, rx) = channel();
+    // The session's events, its end, then the teardown's event, all queued in one
+    // wakeup: the relay must deliver the session's events before it reports
+    // `validating`, and the teardown's event after.
+    let mut sink = BackendEventSink::new(tx.clone());
+    sink.emit(&event());
+    sink.emit(&event());
+    sink.emit(&event());
+    sink.session_ended();
+    sink.emit(&event());
+    drop(sink);
+    drop(tx);
+
+    assert_eq!(
+        relay_task(client, rx, fast_policy()).await,
+        RelayOutcome::Delivered
+    );
+
+    let calls = received.lock().expect("lock").clone();
+    let kinds: Vec<&str> = calls.iter().map(|c| c.kind.as_str()).collect();
+    assert_eq!(kinds, vec!["events", "status", "events"], "{calls:?}");
+    assert_eq!(calls[0].event_count(), 3, "{calls:?}");
+    assert_eq!(calls[1].body["state"], "validating", "{calls:?}");
+    assert!(calls[1].body["record"].is_null(), "{calls:?}");
+    assert!(calls[1].body.get("artifactsStored").is_none(), "{calls:?}");
+    assert_eq!(calls[2].event_count(), 1, "{calls:?}");
+    assert_eq!(
+        calls[2].sequence(),
+        3,
+        "the status report takes no sequence"
+    );
+}
+
+#[tokio::test]
+async fn a_refused_validating_report_does_not_stop_the_relay() {
+    // The backend refuses the report; the relay logs it, tries it once only, and
+    // goes on delivering, so the run is never held up by it.
+    let (base, received) = scripted_backend("status", vec![500]).await;
+    let client = Arc::new(JobClient::new(base, "job-5", "tok"));
+
+    let (tx, rx) = channel();
+    let mut sink = BackendEventSink::new(tx.clone());
+    sink.session_ended();
+    sink.emit(&event());
+    drop(sink);
+    drop(tx);
+
+    assert_eq!(
+        relay_task(client, rx, fast_policy()).await,
+        RelayOutcome::Delivered
+    );
+    let calls = received.lock().expect("lock").clone();
+    let kinds: Vec<&str> = calls.iter().map(|c| c.kind.as_str()).collect();
+    assert_eq!(kinds, vec!["status", "events"], "the report is tried once");
+    assert_eq!(calls[1].sequence(), 0);
 }

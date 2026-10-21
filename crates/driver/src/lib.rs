@@ -92,7 +92,7 @@ pub mod validator;
 // items they always did.
 pub use test_cabinet_contracts::{
     code_analysis, cold_storage, gg, gg_reference, gg_session_journal, gg_session_record, job_api,
-    metrics, publish_job_api, reference_lock, review, showcase, toolchain,
+    metrics, publish_job_api, reference_lock, review, showcase, tool_tally, toolchain,
 };
 
 // The suite runtime's modules that moved whole into `test-cabinet-suites`, re-exported

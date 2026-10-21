@@ -30,12 +30,13 @@ use std::time::Duration;
 use test_cabinet_driver::{
     AgentHarness, ArtifactCollection, ArtifactCollector, Availability, Clock, ContainerHandle,
     ContainerRuntime, ContainerSpec, ContainerStart, CredFile, CredSource, EngineSelection,
-    EventFormat, EventSink, ExecOutput, FsRepoSeeder, HarnessInvocation, HarnessOutcome,
-    HarnessRegistry, HarnessSlug, ManualClock, MapCreds, MediaKind, NoopEventSink,
+    EventFormat, EventKind, EventSink, ExecOutput, FsRepoSeeder, HarnessEvent, HarnessInvocation,
+    HarnessOutcome, HarnessRegistry, HarnessSlug, ManualClock, MapCreds, MediaKind, NoopEventSink,
     OrchestratorCatalog, OrchestratorSelection, OutputSink, OutputStream, PostRunContext,
     PostRunReport, PostRunStage, PrerenderedReferenceRenderer, ProofFile, RenderedReference,
-    Result as CoreResult, RunCancellation, RunEngine, RunRequest, SubscriptionSpec,
-    TestCaseCatalog, TestCaseVersion, TokenCounts, Usage, ValidationSummary, Validator, Variant,
+    Result as CoreResult, RunCancellation, RunEngine, RunRequest, SubscriptionSpec, SystemStage,
+    SystemStatus, TestCaseCatalog, TestCaseVersion, TokenCounts, Usage, ValidationSummary,
+    Validator, Variant,
 };
 
 /// A copy of the frozen carom v2.1.0 under `testdata/definitions/test-cases/`, so the
@@ -290,10 +291,22 @@ fn references(test_case: &TestCaseVersion, variant: &Variant) -> Vec<RenderedRef
         .collect()
 }
 
-/// Drive a complete run whose post-run stage takes longer than the run's entire
-/// runtime cap, and assert the three placement properties the seam exists for.
-#[tokio::test(start_paused = true)]
-async fn the_post_run_stage_runs_after_collection_before_validation_and_outside_the_runtime_cap() {
+/// One complete run through the engine, with everything the assertions read
+/// afterwards. The temporary directories are held so the run tree outlives it.
+struct DrivenRun {
+    record: test_cabinet_driver::RunRecord,
+    steps: Steps,
+    observed: Arc<Mutex<Observed>>,
+    clock: ManualClock,
+    out_dir: tempfile::TempDir,
+    _produced: tempfile::TempDir,
+    _seed_dir: tempfile::TempDir,
+}
+
+/// Drive a complete run of the fixture carom case through the engine with every
+/// external seam faked, its post-run stage taking longer than the run's entire
+/// runtime cap, streaming its events into `events`.
+async fn drive_run(steps: Steps, events: &mut dyn EventSink) -> DrivenRun {
     let catalog = TestCaseCatalog::new(
         catalog_root(),
         test_cabinet_driver::engine::built_in_catalog(),
@@ -314,7 +327,6 @@ async fn the_post_run_stage_runs_after_collection_before_validation_and_outside_
     std::fs::write(produced.path().join("index.html"), "<!doctype html>")
         .expect("write the produced tree");
 
-    let steps: Steps = Arc::new(Mutex::new(Vec::new()));
     let observed = Arc::new(Mutex::new(Observed::default()));
     let seed_dir = tempfile::tempdir().expect("seed dir");
     let out_dir = tempfile::tempdir().expect("output dir");
@@ -386,7 +398,7 @@ async fn the_post_run_stage_runs_after_collection_before_validation_and_outside_
             &test_cabinet_driver::mint_run_id(),
             &request,
             &test_case,
-            &mut NoopEventSink,
+            events,
             None,
             &RunCancellation::default(),
         )
@@ -395,6 +407,30 @@ async fn the_post_run_stage_runs_after_collection_before_validation_and_outside_
         // runtime cap must not turn the run into a timeout. Moving the seam inside
         // `with_runtime_cap` fails here with `RunTimedOut`.
         .expect("the run should finish despite a stage that outlasts the runtime cap");
+
+    DrivenRun {
+        record,
+        steps,
+        observed,
+        clock,
+        out_dir,
+        _produced: produced,
+        _seed_dir: seed_dir,
+    }
+}
+
+/// Drive a complete run whose post-run stage takes longer than the run's entire
+/// runtime cap, and assert the three placement properties the seam exists for.
+#[tokio::test(start_paused = true)]
+async fn the_post_run_stage_runs_after_collection_before_validation_and_outside_the_runtime_cap() {
+    let DrivenRun {
+        record,
+        steps,
+        observed,
+        clock,
+        out_dir,
+        ..
+    } = drive_run(Arc::new(Mutex::new(Vec::new())), &mut NoopEventSink).await;
 
     let observed = observed.lock().expect("observed");
     assert!(observed.ran, "the stage should have been invoked");
@@ -451,5 +487,69 @@ async fn the_post_run_stage_runs_after_collection_before_validation_and_outside_
     assert!(
         !run_dir.join("implementation/test-stage.json").exists(),
         "a stage's artifact must not land inside the produced implementation",
+    );
+}
+
+/// A sink that writes what it is told into the run's shared step log, beside the
+/// collector's, post-run stage's and validator's own steps: each of the session's
+/// events, the engine's announcement that the session ended, and the start of the
+/// teardown.
+struct StepSink {
+    steps: Steps,
+}
+
+impl EventSink for StepSink {
+    fn emit(&mut self, event: &HarnessEvent) {
+        let step = match &event.kind {
+            EventKind::System {
+                stage: SystemStage::Teardown,
+                status: SystemStatus::Started,
+                ..
+            } => "teardown",
+            EventKind::System { .. } => return,
+            _ => "session-event",
+        };
+        self.steps.lock().expect("steps").push(step);
+    }
+
+    fn session_ended(&mut self) {
+        self.steps.lock().expect("steps").push("session-ended");
+    }
+}
+
+/// The engine announces the session's end once, after every event the session
+/// produced and before any post-session work: the teardown, the collection, the
+/// post-run stage and validation. That announcement is what a driver reports a
+/// run's validation from, so an event arriving after it, or work running before
+/// it, would show a run validating while the model is still working.
+#[tokio::test(start_paused = true)]
+async fn the_engine_announces_the_session_end_after_its_events_and_before_the_teardown() {
+    let steps: Steps = Arc::new(Mutex::new(Vec::new()));
+    let mut sink = StepSink {
+        steps: Arc::clone(&steps),
+    };
+    drive_run(Arc::clone(&steps), &mut sink).await;
+
+    let steps = steps.lock().expect("steps").clone();
+    let ended = steps
+        .iter()
+        .position(|step| *step == "session-ended")
+        .unwrap_or_else(|| panic!("the session's end should be announced: {steps:?}"));
+    assert_eq!(
+        steps
+            .iter()
+            .filter(|step| **step == "session-ended")
+            .count(),
+        1,
+        "the session's end is announced once: {steps:?}",
+    );
+    assert!(
+        ended > 0 && steps[..ended].iter().all(|step| *step == "session-event"),
+        "the session's events come before its end, and nothing else does: {steps:?}",
+    );
+    assert_eq!(
+        steps[ended + 1..],
+        ["teardown", "collect", "post-run", "validate"],
+        "every post-session step follows the announcement: {steps:?}",
     );
 }

@@ -76,6 +76,14 @@ pub trait EventSink: Send {
     /// between a run's stages, so a host can name the stage a run was interrupted
     /// in (see [`crate::sigterm`]). Ignored by default.
     fn stage(&mut self, _stage: crate::sigterm::Stage) {}
+
+    /// The engine's announcement that the harness session has ended: every event
+    /// the session produced has already been [emitted](Self::emit), and
+    /// everything the engine does from here on (collecting the tree, tearing the
+    /// sandbox down, the post-run analysis, the toolchain, validation) is
+    /// post-session work. Called at most once per run, and not at all when the
+    /// session could not be driven to its end. Ignored by default.
+    fn session_ended(&mut self) {}
 }
 
 /// An [`EventSink`] that discards every event.
@@ -146,8 +154,8 @@ pub struct EventParser {
     /// miss the consumed ones (Kilo calls `todowrite` dozens of times a run). Not
     /// part of the [event stream](HarnessEvent) — it is surfaced separately on the
     /// run outcome. Populated for the tool-name harnesses (Kilo, OpenCode, Cline,
-    /// Pi, Goose, Claude); item-based Codex, whose every tool maps to a semantic
-    /// event with no consumed todos, is represented by those events instead.
+    /// Pi, Goose, Claude); item-based Codex names no tools, so its tally is counted
+    /// off the events its items become (see [`crate::tool_tally`]).
     tool_calls: BTreeMap<String, u64>,
 }
 

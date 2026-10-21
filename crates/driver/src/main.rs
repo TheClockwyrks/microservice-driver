@@ -1,8 +1,9 @@
 //! The `tcab-driver` binary entrypoint.
 //!
 //! Resolves its configuration from the environment the dispatcher set, reports
-//! `running` to the backend, drives the one run it was created for while streaming
-//! the live events and preview frames back, then hands the finished run to durable
+//! `running` to the backend (and `validating` once the harness session ends),
+//! drives the one run it was created for while streaming the live events and
+//! preview frames back, then hands the finished run to durable
 //! storage through [`finish`](test_cabinet_driver::finish): the held `storing`
 //! report carrying the record, the run tree and bundle uploads, and the terminal
 //! status carrying the produced (or failed) record — and exits, successfully once
@@ -232,7 +233,8 @@ async fn run_job(
     // Mark the job starting before any work, so the console shows it left the queue
     // and is spinning up (pre-run container setup). The driver advances it to
     // `running` from inside `drive` once setup finishes and the harness session is
-    // about to begin. A failure to even report this is terminal: the driver cannot
+    // about to begin, and the relay advances it to `validating` once the session
+    // has ended. A failure to even report this is terminal: the driver cannot
     // stream, so there is nothing useful it can still do.
     //
     // A *refusal* is the backend saying the job is no longer this driver's: its claim

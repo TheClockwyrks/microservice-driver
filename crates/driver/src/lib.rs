@@ -92,7 +92,7 @@ pub mod validator;
 // items they always did.
 pub use test_cabinet_contracts::{
     code_analysis, cold_storage, gg, gg_reference, gg_session_journal, gg_session_record, job_api,
-    metrics, publish_job_api, reference_lock, review, showcase, toolchain,
+    metrics, publish_job_api, reference_lock, review, showcase, tool_tally, toolchain,
 };
 
 // The suite runtime's modules that moved whole into `test-cabinet-suites`, re-exported
@@ -2044,6 +2044,9 @@ where
                 cancel,
             )
             .await?;
+        // Tell the sink the session is over before any post-session work, so an
+        // observer can tell the model working apart from the run being validated.
+        events.session_ended();
         // The run timer the instant the session ended. Everything the run engine did
         // before this point is setup and everything after it is teardown, so this
         // read plus `session_elapsed` is what separates the model's own working time

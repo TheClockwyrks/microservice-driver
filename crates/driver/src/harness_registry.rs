@@ -490,7 +490,8 @@ pub(crate) struct Streamed {
     /// Every translated event, in the order produced.
     pub translated_events: Vec<HarnessEvent>,
     /// Per-tool invocation counts accumulated while translating the stream (see
-    /// [`crate::event::EventParser`]), including consumed todo tools.
+    /// [`crate::event::EventParser`]), including consumed todo tools; for Codex,
+    /// counted off the translated events (see [`crate::tool_tally`]).
     pub tool_calls: std::collections::BTreeMap<String, u64>,
 }
 
@@ -524,7 +525,12 @@ pub(crate) async fn run_streamed_translation(
         .await?;
     let raw_output = std::mem::take(&mut translator.raw);
     let translated_events = std::mem::take(&mut translator.recorded);
-    let tool_calls = translator.parser.take_tool_calls();
+    // Codex names no tools in its output, so its tally is counted off the events
+    // its items became, by the same function that counts a stored Codex run.
+    let tool_calls = match format {
+        EventFormat::Codex => crate::tool_tally::codex_tool_calls(&translated_events),
+        _ => translator.parser.take_tool_calls(),
+    };
     drop(translator);
     Ok(Streamed {
         output,
@@ -1305,3 +1311,7 @@ fn first_line(text: &str) -> Option<String> {
 #[cfg(test)]
 #[path = "harness_registry.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "harness_registry.tool_tally.test.rs"]
+mod tool_tally_tests;

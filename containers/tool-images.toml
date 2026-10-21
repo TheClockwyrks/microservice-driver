@@ -13,10 +13,10 @@
 # resolves: a run image carries the tool the driver was built and tested against.
 # Bump the two together: `cargo update -p test-cabinet-draw` (or
 # `-p test-cabinet-voxel`), then the line here.
-tool-sprite = "1da52d09f01ac9914a6c162bbd88f41861110138"
+tool-sprite = "f1df7e2c216eb5d41f2eefb8a9d83aee4ebbdc88"
 tool-paint = "3346d5df92070ae4f438475fc6c8be5dbd896bb0"
 tool-particle = "9553ce97594c3e0ce70d5bd7783d4823e13fdc3c"
-tool-voxel = "cf7372247c43ec837caafb944aa0ff0213f351b6"
+tool-voxel = "cbfe82b2bbd33d9b5fc449e9073655548a540428"
 tool-mc = "44d9f3c073a61d14b2ec31739139476bc65e6b15"
 tool-sn = "48b703ad8c24b27088f09de27dc6bd1d574a9067"
 tool-dc = "416560430be57cd1d02483818261745d1bcdcfae"

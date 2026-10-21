@@ -16,7 +16,16 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { after, before, test } from "node:test";
@@ -81,6 +90,44 @@ test("the closure is staged, the asset contract with it", () => {
   assert.ok(names.includes("@clockwyrks/asset-contract"), names.join(", "));
 });
 
+// Inside the superrepo, scripts/repos/link-packages.sh replaces each installed
+// package with a link to the sibling checkout that builds it. A copy of the script
+// over a scope of links to the installed packages stages the same closure.
+test("a linked install stages the same closure", () => {
+  const root = mkdtempSync(join(tmpdir(), "stage-tcab-packages-linked-"));
+  try {
+    mkdirSync(join(root, "scripts"));
+    copyFileSync(
+      join(repoRoot, "scripts/stage-tcab-packages.mjs"),
+      join(root, "scripts/stage-tcab-packages.mjs"),
+    );
+    const scope = join(repoRoot, "node_modules", "@clockwyrks");
+    const linked = join(root, "node_modules", "@clockwyrks");
+    mkdirSync(linked, { recursive: true });
+    for (const name of readdirSync(scope)) {
+      symlinkSync(
+        realpathSync(join(scope, name)),
+        join(linked, name),
+        "junction",
+      );
+    }
+    const out = join(root, "out");
+    execFileSync(
+      process.execPath,
+      [join(root, "scripts/stage-tcab-packages.mjs"), "--manifests-only", out],
+      { cwd: root, stdio: "pipe" },
+    );
+    const names = (dir) =>
+      readdirSync(dir, { recursive: true })
+        .filter((path) => path.split(/[\\/]/).at(-1) === "package.json")
+        .map((path) => JSON.parse(readFileSync(join(dir, path), "utf8")).name)
+        .sort();
+    assert.deepEqual(names(out), names(outDir));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("no staged manifest keeps a registry field", () => {
   for (const { path, text } of manifests) {
     const manifest = JSON.parse(text);
@@ -114,8 +161,24 @@ test("no seeded manifest names what a model must not learn", () => {
   }
 });
 
+// The lock that records what the driver builds with. Inside the superrepo cargo
+// rewrites this checkout's Cargo.lock to the sibling checkouts the superrepo's patch
+// table names, which leaves no source of the project's repositories in it, and that
+// copy is never committed (the Repositories development page, "The record of what
+// builds together"); the record is then the lock HEAD commits.
+function recordedLock() {
+  const working = readFileSync(join(repoRoot, "Cargo.lock"), "utf8");
+  if (/^source = "git\+https:\/\/github\.com\/TheClockwyrks\//m.test(working)) {
+    return working;
+  }
+  return execFileSync("git", ["show", "HEAD:./Cargo.lock"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+}
+
 test("the workspace depends on each shippable package at the pinned engines tag", () => {
-  const lock = readFileSync(join(repoRoot, "Cargo.lock"), "utf8");
+  const lock = recordedLock();
   const tags = new Set(
     [
       ...lock.matchAll(

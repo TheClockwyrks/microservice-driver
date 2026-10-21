@@ -7,7 +7,8 @@
 # with a docker stub whose registry is a file of references. The subjects are the
 # reference each tool image is named by, the override, that `check` fails naming the
 # pinned commit when the registry lacks it, the pin file's shape, and that `lock` holds
-# the pins to the lock. The last case runs `lock` over this repository's own files.
+# the pins to the lock, the committed one when the working copy is the superrepo's
+# rewrite. The last case runs `lock` over this repository's own files.
 set -uo pipefail
 
 CI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -297,6 +298,45 @@ check_contains "saying so" "resolves tool-sprite to more than one commit" "$out"
 rm "$repo/Cargo.lock"
 out="$(run lock)"
 check_equal "a missing lock fails" "1" "$?"
+write_lock "$PIN" "$VOXEL_PIN"
+# Inside the superrepo cargo rewrites the lock to the sibling checkouts, which leaves
+# no source of the project's repositories in it; the committed lock is the record.
+write_rewritten_lock() {
+	cat >"$repo/Cargo.lock" <<LOCK
+[[package]]
+name = "test-cabinet-draw"
+version = "0.0.0"
+
+[[package]]
+name = "test-cabinet-voxel"
+version = "0.0.0"
+LOCK
+}
+write_rewritten_lock
+out="$(run lock)"
+check_equal "a rewritten lock outside a checkout of its own is read as it is" "0" "$?"
+check_contains "comparing nothing" "0 pin(s) agree with Cargo.lock" "$out"
+git -C "$repo" init -q
+git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -q --allow-empty -m empty
+check_contains "nor in one whose HEAD commits no lock" "0 pin(s) agree with Cargo.lock" "$(run lock)"
+write_lock "$PIN" "$VOXEL_PIN"
+git -C "$repo" add Cargo.lock
+git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -q -m lock
+write_rewritten_lock
+out="$(run lock)"
+check_equal "a rewritten lock in a checkout committing one reads the committed lock" "0" "$?"
+check_contains "saying so" "reading the committed Cargo.lock" "$out"
+check_contains "and comparing its sources" "tool-sprite: ${PIN} (as Cargo.lock resolves it)" "$out"
+check_contains "every one of them" "2 pin(s) agree with Cargo.lock" "$out"
+write_lock "$PAINT_PIN" "$VOXEL_PIN"
+git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -q -am moved
+write_rewritten_lock
+mkdir "$tmp/scratch"
+out="$(TMPDIR="$tmp/scratch" run lock)"
+check_equal "a committed lock resolving a pin elsewhere fails" "1" "$?"
+check_contains "naming its commit" "resolves its crates at ${PAINT_PIN}" "$out"
+check_equal "and the committed copy is removed on the way out" "" "$(ls -A "$tmp/scratch")"
+rm -rf "$repo/.git"
 write_lock "$PIN" "$VOXEL_PIN"
 
 echo "--- this repository's own pins ---"

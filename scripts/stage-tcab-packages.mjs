@@ -62,6 +62,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -122,12 +123,19 @@ function globPattern(glob) {
 }
 
 // Map every installed package name -> { dir, pkg } by reading each directory's
-// package.json.
+// package.json. An entry may be a link rather than a directory: inside the
+// superrepo, scripts/repos/link-packages.sh replaces each installed package with a
+// link to the sibling checkout that builds it, and the link is followed.
 const byName = new Map();
 if (existsSync(installedDir)) {
   for (const entry of readdirSync(installedDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
     const dir = join(installedDir, entry.name);
+    const isDir =
+      entry.isDirectory() ||
+      (entry.isSymbolicLink() &&
+        existsSync(dir) &&
+        statSync(dir).isDirectory());
+    if (!isDir) continue;
     const manifestPath = join(dir, "package.json");
     if (!existsSync(manifestPath)) continue;
     const pkg = JSON.parse(readFileSync(manifestPath, "utf8"));

@@ -113,10 +113,10 @@ test-cabinet-redact = { git = "https://github.com/TheClockwyrks/contracts", tag 
 test-cabinet-backend-client = { git = "https://github.com/TheClockwyrks/contracts", tag = "v0.2.4" }
 # The engine catalog, the match runner, and the Foray and Lattice rules the
 # validators record a match or a case's state in.
-test-cabinet-engines = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3" }
-test-cabinet-match-play = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3" }
-foray-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3" }
-lattice-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.3", default-features = false }
+test-cabinet-engines = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.4" }
+test-cabinet-match-play = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.4" }
+foray-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.4" }
+lattice-core = { git = "https://github.com/TheClockwyrks/engines", tag = "v1.1.4", default-features = false }
 # The tool crates the driver regenerates or reads a run's scored output through,
 # each the library alone (not the `cli` feature's binaries). tool-sprite and
 # tool-voxel carry no tag the dependents pin, so they are named at `master`.

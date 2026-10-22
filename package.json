@@ -19,13 +19,13 @@
     "test:scripts": "node --test scripts/*.test.mjs scripts/lib/*.test.mjs"
   },
   "dependencies": {
-    "@clockwyrks/case-harness": "1.1.3",
-    "@clockwyrks/particle-runtime": "1.1.3",
-    "@clockwyrks/simple-2d": "1.1.3",
-    "@clockwyrks/simple-3d": "1.1.3",
-    "@clockwyrks/structured-2d": "1.1.3",
-    "@clockwyrks/structured-3d": "1.1.3",
-    "@clockwyrks/voxel-runtime": "1.1.3"
+    "@clockwyrks/case-harness": "1.1.4",
+    "@clockwyrks/particle-runtime": "1.1.4",
+    "@clockwyrks/simple-2d": "1.1.4",
+    "@clockwyrks/simple-3d": "1.1.4",
+    "@clockwyrks/structured-2d": "1.1.4",
+    "@clockwyrks/structured-3d": "1.1.4",
+    "@clockwyrks/voxel-runtime": "1.1.4"
   },
   "devDependencies": {
     "@vitest/browser-playwright": "5.0.0",

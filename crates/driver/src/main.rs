@@ -32,7 +32,7 @@ use test_cabinet_driver::cancel::{
 use test_cabinet_driver::client::{JobClient, first_report_failure};
 use test_cabinet_driver::config::{Config, DriverRuntime};
 use test_cabinet_driver::finish::{
-    FinishTarget, Mirrors, REPORT_ATTEMPT_TIMEOUT, RunOutcome, finish,
+    ControllerPush, FinishTarget, NoControllerPush, REPORT_ATTEMPT_TIMEOUT, RunOutcome, finish,
 };
 use test_cabinet_driver::kubernetes::KubernetesContainerRuntime;
 use test_cabinet_driver::run::{RunFailure, drive};
@@ -458,7 +458,7 @@ async fn run_job(
                 Some(record),
                 RunOutcome::Succeeded,
                 already_canceled,
-                &BackendMirrors::new(config, MirrorSet::All),
+                &BackendControllerPush(config),
             )
             .await;
             if already_canceled {
@@ -603,14 +603,14 @@ async fn report_canceled(
     // never reached artifact collection, so the out directory is usually empty — but a
     // run that errored *after* collecting has a tree and a bundle worth keeping, and a
     // cancellation that could not wind down cleanly still leaves a salvaged, truncated
-    // gg session record in the run tree, which the mirrors carry to the backend store.
+    // gg session record in the run tree, which the tree upload carries.
     let out_dir = config.work_dir.join("out");
     finish(
         &finish_target(config, client, &out_dir, stage, events),
         Some(record),
         RunOutcome::Canceled,
         true,
-        &BackendMirrors::new(config, MirrorSet::Canceled),
+        &NoControllerPush,
     )
     .await
     .exit_code()
@@ -675,217 +675,6 @@ async fn teardown_sandbox(config: &Config) -> bool {
     }
 }
 
-/// Mirror an adversarial run's controller wasm + proof replays into the **backend
-/// store**, so a backend-driven run is pittable in the arena and its replays play
-/// back — the backend-driven counterpart to the CLI's push-time upload. A no-op for
-/// any non-adversarial run (and a forfeit that produced no controller). Reads the
-/// files from the produced tree the driver still holds on disk; an upload failure is
-/// logged but never fatal, exactly like the artifact-service upload.
-async fn finalize_adversarial_backend_upload(
-    config: &Config,
-    record: &test_cabinet_driver::RunRecord,
-) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_adversarial_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload adversarial controller/replays to the backend store",
-        );
-    }
-}
-
-/// Mirror a performance run's scored scenarios into the **backend store**, so a
-/// backend-driven run's browser playback has something to load — the performance
-/// counterpart to [`finalize_adversarial_backend_upload`]. A no-op for any other
-/// run type, and for a run whose engine got no case right (playback is offered only
-/// for a passing run). An upload failure is logged but never fatal.
-async fn finalize_performance_backend_upload(
-    config: &Config,
-    record: &test_cabinet_driver::RunRecord,
-) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_performance_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload performance scenarios to the backend store",
-        );
-    }
-}
-
-/// Mirror a run's proof-of-implementation media into the **backend store**, so the
-/// public snapshot the backend exports carries it and the published site can display
-/// it — the backend-driven counterpart to the artifact-service tarball, which only
-/// serves the session that produced the run. A no-op for a run that declares no
-/// proofs. Reads the media from the produced tree the driver still holds on disk; an
-/// upload failure is logged but never fatal, exactly like the artifact-service and
-/// adversarial uploads.
-async fn finalize_proof_backend_upload(config: &Config, record: &test_cabinet_driver::RunRecord) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_proofs_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload proof media to the backend store",
-        );
-    }
-}
-
-/// Mirror a run's synthesized *actual* validation media (the model build's
-/// per-review-item debug-script outputs) into the **backend store**, so the public
-/// snapshot carries it and the published site can show the reviewer's
-/// automated-validation side-by-side. A no-op for a run that declares no debug scripts.
-/// Reads the media from the produced tree the driver still holds on disk; an upload
-/// failure is logged but never fatal, exactly like the proof and asset uploads.
-async fn finalize_validation_backend_upload(
-    config: &Config,
-    record: &test_cabinet_driver::RunRecord,
-) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_validation_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload synthesized validation media to the backend store",
-        );
-    }
-}
-
-/// Mirror a gg run's session record into the **backend store**, so `GET /runs/{id}/replay` can serve
-/// it to a replay driver.
-///
-/// A no-op for any run with no assembled record at the run tree's root (every non-gg run, and a gg
-/// run whose journal never reached the host). Reads the record from the produced tree the driver
-/// still holds on disk; an upload failure is logged but never fatal, exactly like the proof and
-/// validation uploads.
-async fn finalize_replay_backend_upload(config: &Config, record: &test_cabinet_driver::RunRecord) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_replay_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload the gg session record to the backend store",
-        );
-    }
-}
-
-/// Mirror a run's code-analysis document into the **backend store**, so
-/// `GET /runs/{id}/code-analysis` can serve the per-run Code tab its unbounded tier —
-/// every file, symbol, import edge, cycle and clone group.
-///
-/// Applies to every harness, unlike the replay mirror. A no-op for a run with no document
-/// at the run tree's root. Reads it from the produced tree the driver still holds on disk;
-/// an upload failure is logged but never fatal, exactly like the proof and validation
-/// uploads. **No figure in the document affects the run's score or verdict**, so a lost
-/// upload costs a tab and nothing else.
-async fn finalize_code_analysis_backend_upload(
-    config: &Config,
-    record: &test_cabinet_driver::RunRecord,
-) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_code_analysis_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload the run's code-analysis document to the backend store",
-        );
-    }
-}
-
-/// Mirror an asset-generation run's media (regenerated/preview image + action log)
-/// into the **backend store**, so the public snapshot carries it and the published
-/// asset result view can display it. A no-op for a non-asset-generation run. Reads
-/// the media from the produced tree the driver still holds on disk; an upload failure
-/// is logged but never fatal, exactly like the proof and adversarial uploads.
-async fn finalize_asset_backend_upload(config: &Config, record: &test_cabinet_driver::RunRecord) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_assets_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload asset-generation media to the backend store",
-        );
-    }
-}
-
-/// Mirror a run's showcase files (the carousel media, plus any image the
-/// description references) into the **backend store**, so the public snapshot
-/// carries them and the published Play tab can render the showcase around the
-/// playable build. A no-op for a run whose record captured no showcase. Reads the
-/// files from the produced tree the driver still holds on disk; an upload failure
-/// is logged but never fatal, exactly like the proof and asset uploads — a
-/// showcase problem never fails a run.
-async fn finalize_showcase_backend_upload(
-    config: &Config,
-    record: &test_cabinet_driver::RunRecord,
-) {
-    let out_dir = config.work_dir.join("out");
-    if let Err(err) = test_cabinet_driver::artifacts::upload_showcase_to_backend(
-        &config.backend_url,
-        &config.job_token,
-        record,
-        &out_dir,
-    )
-    .await
-    {
-        tracing::warn!(
-            run_id = %record.id,
-            error = %err,
-            "could not upload the run's showcase files to the backend store",
-        );
-    }
-}
-
 /// Stream a terminal `failed` status to the backend with a specific reason and
 /// whatever record the run managed to produce.
 ///
@@ -947,7 +736,7 @@ async fn report_failure(
             detail: failure.detail,
         },
         false,
-        &BackendMirrors::new(config, MirrorSet::Failed),
+        &NoControllerPush,
     )
     .await
     .exit_code()
@@ -977,68 +766,29 @@ fn finish_target<'a>(
     }
 }
 
-/// Which of the best-effort backend-store mirrors a finishing path makes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MirrorSet {
-    /// A run that produced its record: every mirror.
-    All,
-    /// A failed run: the gg session record, which a `hung` or `timed_out` gg run
-    /// salvages into its tree even though it never reached artifact collection —
-    /// the replay of exactly the run most worth replaying.
-    Failed,
-    /// A canceled run the driver recorded itself: the gg session record a
-    /// cancellation that could not wind down cleanly still salvages, and the code
-    /// analysis, whatever did land in the run tree being the only account of the
-    /// run.
-    Canceled,
-}
+/// The push of an adversarial run's controller to the backend, made by [`finish`]
+/// between the uploads and the terminal report for a run that produced its record,
+/// so a backend-driven run is pittable in the arena. A no-op for any other run type
+/// and for a forfeit that produced no controller. Reads the module from the produced
+/// tree the driver still holds on disk; a failure is logged and never fails the run.
+struct BackendControllerPush<'a>(&'a Config);
 
-/// The best-effort mirrors of a run's media into the backend store, made by
-/// [`finish`] between the uploads and the terminal report. Each logs its own
-/// failure and never fails the run.
-struct BackendMirrors<'a> {
-    config: &'a Config,
-    set: MirrorSet,
-}
-
-impl<'a> BackendMirrors<'a> {
-    fn new(config: &'a Config, set: MirrorSet) -> Self {
-        Self { config, set }
-    }
-}
-
-impl Mirrors for BackendMirrors<'_> {
-    async fn mirror(&self, record: &test_cabinet_driver::RunRecord) {
-        let config = self.config;
-        if self.set == MirrorSet::All {
-            // For an adversarial run, mirror the controller wasm + proof replays into
-            // the *backend* store (the CLI does this at push). Without it a
-            // backend-driven run is invisible to the arena and its replays 404 — a
-            // no-op for any other run type.
-            finalize_adversarial_backend_upload(config, record).await;
-            // For a performance run, mirror each passing case's scored scenario the
-            // same way — browser playback fetches it from the backend store and
-            // re-simulates it. A no-op for any other run type.
-            finalize_performance_backend_upload(config, record).await;
-            // The run's proof-of-implementation media: the public snapshot reads proof
-            // from the backend store, so without this proof never reaches the
-            // published site.
-            finalize_proof_backend_upload(config, record).await;
-            // The run's synthesized *actual* validation media: the public snapshot
-            // reads it from the backend store for the reviewer's side-by-side.
-            finalize_validation_backend_upload(config, record).await;
-            // An asset-generation run's media (regenerated/preview image + action log).
-            finalize_asset_backend_upload(config, record).await;
-            // The run's showcase files (the carousel media and any image the
-            // description references), for the published Play tab.
-            finalize_showcase_backend_upload(config, record).await;
-        }
-        // A gg run's `.gg/replay.json` record, so `GET /runs/{id}/replay` can serve it
-        // to a replay driver. A no-op for any run that captured none.
-        finalize_replay_backend_upload(config, record).await;
-        if self.set != MirrorSet::Failed {
-            // The run's code-analysis document, for the per-run Code tab.
-            finalize_code_analysis_backend_upload(config, record).await;
+impl ControllerPush for BackendControllerPush<'_> {
+    async fn push(&self, record: &test_cabinet_driver::RunRecord) {
+        let config = self.0;
+        if let Err(err) = test_cabinet_driver::artifacts::push_controller_to_backend(
+            &config.backend_url,
+            &config.job_token,
+            record,
+            &config.work_dir.join("out"),
+        )
+        .await
+        {
+            tracing::warn!(
+                run_id = %record.id,
+                error = %err,
+                "could not push the adversarial controller to the backend",
+            );
         }
     }
 }

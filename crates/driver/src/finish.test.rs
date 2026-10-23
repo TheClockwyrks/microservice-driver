@@ -267,12 +267,12 @@ fn record() -> RunRecord {
     }
 }
 
-/// Mirrors that log when they run.
-struct LoggedMirrors(Arc<Mutex<Vec<String>>>);
+/// A controller push that logs when it runs.
+struct LoggedControllerPush(Arc<Mutex<Vec<String>>>);
 
-impl Mirrors for LoggedMirrors {
-    async fn mirror(&self, _record: &RunRecord) {
-        self.0.lock().expect("lock").push("mirrors".into());
+impl ControllerPush for LoggedControllerPush {
+    async fn push(&self, _record: &RunRecord) {
+        self.0.lock().expect("lock").push("controller".into());
     }
 }
 
@@ -307,7 +307,7 @@ async fn run(
         record,
         outcome,
         already_canceled,
-        &LoggedMirrors(stub.log.clone()),
+        &LoggedControllerPush(stub.log.clone()),
     )
     .await
 }
@@ -357,16 +357,16 @@ async fn a_backend_down_for_a_minute_delays_the_run_and_every_call_lands_once() 
         "the 503s were retried: {log:?}"
     );
     let first_upload = log.iter().position(|what| what == "tree").expect("tree");
-    let mirrors = log
+    let controller = log
         .iter()
-        .position(|what| what == "mirrors")
-        .expect("mirrors");
+        .position(|what| what == "controller")
+        .expect("controller");
     let terminal = log
         .iter()
         .position(|what| what == "succeeded")
         .expect("succeeded");
     assert!(log[..first_upload].iter().all(|what| what == "storing"));
-    assert!(first_upload < mirrors && mirrors < terminal);
+    assert!(first_upload < controller && controller < terminal);
     // The terminal report carries the stored tree and its build link.
     let reports = stub.reports();
     let terminal = reports.last().expect("terminal");
@@ -603,7 +603,7 @@ async fn a_refused_terminal_report_ends_the_finishing_successfully() {
         Some(record()),
         RunOutcome::Succeeded,
         false,
-        &NoMirrors,
+        &NoControllerPush,
     )
     .await;
 

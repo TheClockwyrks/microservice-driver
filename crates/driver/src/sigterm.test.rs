@@ -22,7 +22,7 @@ use super::*;
 use crate::EventSink;
 use crate::artifacts::TreeStore;
 use crate::client::JobClient;
-use crate::finish::{FinishTarget, NoMirrors, RunOutcome, finish};
+use crate::finish::{FinishTarget, NoControllerPush, RunOutcome, finish};
 use crate::job_api::JobState;
 use crate::metrics::*;
 use crate::run_record::*;
@@ -399,7 +399,7 @@ async fn finishing(
         Some(record()),
         RunOutcome::Succeeded,
         false,
-        &NoMirrors,
+        &NoControllerPush,
     )
     .await;
     assert!(matches!(finished.tree, TreeStore::Stored), "{finished:?}");

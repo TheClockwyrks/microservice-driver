@@ -57,7 +57,7 @@ time = { workspace = true }
 semver = { workspace = true }
 # Gzip framing for the run-tree analysis artifacts the engine assembles on the host
 # (`gg_session_assembly` writes `replay.json.gz`, the analyzer `code-analysis.json.gz`);
-# the same workspace codec the backend store's reader and the archive service use, so
+# the same workspace codec the artifacts service's reader uses, so
 # one encoder decides the framing for the whole path.
 flate2 = { workspace = true }
 png = { workspace = true }

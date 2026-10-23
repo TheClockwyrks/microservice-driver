@@ -10,8 +10,8 @@
 //! 2. The uploads: the run tree to the artifacts service
 //!    ([`store_run_tree`]), which stamps the
 //!    playable-build link only once the tree is stored, then the bundle to the
-//!    repos service ([`store_bundle`]), then the
-//!    best-effort mirrors into the backend store ([`Mirrors`]).
+//!    repos service ([`store_bundle`]), then the best-effort push of an
+//!    adversarial run's controller to the backend ([`ControllerPush`]).
 //! 3. The terminal report: `succeeded`, `failed` or `canceled`, carrying the
 //!    record with its build link, `artifactsStored` and, when the store was why the
 //!    tree was not stored, `storeFault`.
@@ -114,20 +114,20 @@ pub enum RunOutcome {
     Canceled,
 }
 
-/// The best-effort mirrors of a run's media into the backend store, made after the
-/// uploads and before the terminal report. Their failures are the mirror's own to
-/// log; they never change the run's finishing.
-pub trait Mirrors {
-    /// Mirror what `record`'s tree holds into the backend store.
-    fn mirror(&self, record: &RunRecord) -> impl Future<Output = ()>;
+/// The best-effort push of an adversarial run's controller to the backend, made
+/// after the uploads and before the terminal report. Its failure is the push's own
+/// to log; it never changes the run's finishing.
+pub trait ControllerPush {
+    /// Push the controller `record`'s tree holds to the backend.
+    fn push(&self, record: &RunRecord) -> impl Future<Output = ()>;
 }
 
-/// No mirrors at all.
+/// No controller push at all.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct NoMirrors;
+pub struct NoControllerPush;
 
-impl Mirrors for NoMirrors {
-    async fn mirror(&self, _record: &RunRecord) {}
+impl ControllerPush for NoControllerPush {
+    async fn push(&self, _record: &RunRecord) {}
 }
 
 /// How one report ended.
@@ -303,15 +303,15 @@ impl StoreWait for FinishWait<'_, '_> {
 /// `record` is the run's record, `None` only for a failed run whose record could
 /// not be built: such a run has no held report and no uploads, only its `failed`
 /// report. `outcome` is what the run reached. `already_canceled` is set for a gg
-/// run that was canceled before its finishing began. `mirrors` runs between the
-/// uploads and the terminal report, which is withheld when `target.events` says a
+/// run that was canceled before its finishing began. `controller` is pushed between
+/// the uploads and the terminal report, which is withheld when `target.events` says a
 /// batch went unacknowledged.
-pub async fn finish<M: Mirrors>(
+pub async fn finish<C: ControllerPush>(
     target: &FinishTarget<'_>,
     record: Option<RunRecord>,
     outcome: RunOutcome,
     already_canceled: bool,
-    mirrors: &M,
+    controller: &C,
 ) -> Finished {
     let client = target.client;
     let watch = Watch::new(client, already_canceled);
@@ -368,7 +368,7 @@ pub async fn finish<M: Mirrors>(
         }
         _ => None,
     };
-    mirrors.mirror(&record).await;
+    controller.push(&record).await;
 
     // 3. The terminal report, made only once every event batch is acknowledged.
     if target.events == RelayOutcome::Undelivered {

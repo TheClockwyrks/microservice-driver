@@ -179,10 +179,7 @@ pub(super) fn record(adversarial: Option<AdversarialResult>) -> RunRecord {
             adversarial,
             ..Default::default()
         },
-        links: RunLinks {
-            source_repo: None,
-            playable_build: None,
-        },
+        links: RunLinks::default(),
         status: RunStatus {
             state: RunState::Completed,
             detail: None,

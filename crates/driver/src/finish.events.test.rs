@@ -219,7 +219,14 @@ async fn settle_and_finish(
         stage: None,
         events,
     };
-    finish(&target, record, outcome, already_canceled, &NoMirrors).await
+    finish(
+        &target,
+        record,
+        outcome,
+        already_canceled,
+        &NoControllerPush,
+    )
+    .await
 }
 
 // --- the finishing -------------------------------------------------------------

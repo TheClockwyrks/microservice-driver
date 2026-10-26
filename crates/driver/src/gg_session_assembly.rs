@@ -74,8 +74,8 @@ use crate::post_run::{PostRunContext, PostRunReport, PostRunStage};
 ///
 /// `implementation/` is a verbatim copy of what the model produced; a host-written file
 /// there would read as code the model wrote. The root is also what the
-/// [run-tree artifact convention](crate::post_run) names: `<name>.json.gz` here, mirrored
-/// into the backend store as opaque bytes and served back content-negotiated.
+/// [run-tree artifact convention](crate::post_run) names: `<name>.json.gz` here, served from
+/// the run's tree by the artifacts service's `GET /runs/{id}/replay`, content-negotiated.
 pub const GG_SESSION_TREE_ARTIFACT: &str = "replay.json.gz";
 
 /// What one [assembly](assemble_journal_to_gz) produced.

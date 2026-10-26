@@ -1630,7 +1630,7 @@ where
         // `write_failed_record`, which builds the same `<output_dir>/<run_id>` path — the
         // reason `run_resolved` takes its id from the caller rather than minting one. The
         // stage writes its artifact at that tree's root, exactly where a completed run's
-        // is, so the driver's mirror and the artifact-service upload find it unchanged.
+        // is, so the artifact-service upload finds it unchanged.
         let run_dir = self.output_dir.join(run_id);
         if let Err(err) = std::fs::create_dir_all(&run_dir) {
             tracing::warn!(
